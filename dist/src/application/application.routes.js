@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const application_controllers_1 = require("./application.controllers");
+const application_validations_1 = require("./application.validations");
+const catch_error_1 = require("../common/middleware/catch-error");
+const role_auth_middleware_1 = require("../common/middleware/role-auth.middleware");
+const router = (0, express_1.Router)();
+router.post("/create", (0, role_auth_middleware_1.roleAuth)(["USER", "ADMIN"]), catch_error_1.catchError, application_validations_1.createApplicationValidation, application_controllers_1.createApplication);
+exports.default = router;

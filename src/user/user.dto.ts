@@ -6,6 +6,7 @@ export interface IUser extends BaseSchema {
     email: string;
     password: string;
     role: string;
+    pancard: string;
     phone?: string;
     payment: mongoose.Schema.Types.ObjectId[]; // Assuming content is a reference to another schema
     name: string;

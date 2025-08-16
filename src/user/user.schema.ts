@@ -27,18 +27,14 @@ const userSchema = new Schema<IUser>({
         enum: ["USER", "ADMIN"],
         default: "USER",
       },
-      phone: {
-        type: String,
-      },
 
      payment: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payment", // Assuming Payment is the model name for payments
      }],
-
-            refreshToken: {
-                type: String
-            }
+        refreshToken: {
+          type: String
+       }
 });
  
 

@@ -41,49 +41,19 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const mongoose_1 = __importStar(require("mongoose"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
-const hashPassword = (password) => __awaiter(void 0, void 0, void 0, function* () {
-    const hash = yield bcrypt_1.default.hash(password, 12);
-    return hash;
-});
-const userSchema = new mongoose_1.Schema({
-    name: {
-        type: String,
-        required: true,
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-    },
-    password: {
-        type: String,
-        required: true,
-    },
-    role: {
-        type: String,
-        enum: ["USER", "ADMIN"],
-        default: "USER",
-    },
-    payment: [{
-            type: mongoose_1.default.Schema.Types.ObjectId,
-            ref: "Payment", // Assuming Payment is the model name for payments
-        }],
-    refreshToken: {
-        type: String
+exports.createApplication = void 0;
+const response_helper_1 = require("../common/helper/response.helper");
+const createApplicationService = __importStar(require("./application.services"));
+const createApplication = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
+    if (!userId) {
+        res.send((0, response_helper_1.createResponse)(null, "Unauthorized"));
+        return;
     }
+    const result = yield createApplicationService.createApplication(userId, req.body);
+    res.send((0, response_helper_1.createResponse)(result, "Application created successfully"));
+    return;
 });
-userSchema.pre("save", function (next) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (this.isModified("password")) {
-            this.password = yield hashPassword(this.password);
-        }
-        next();
-    });
-});
-exports.default = (0, mongoose_1.model)("User", userSchema);
+exports.createApplication = createApplication;

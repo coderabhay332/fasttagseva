@@ -45,45 +45,36 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const mongoose_1 = __importStar(require("mongoose"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
-const hashPassword = (password) => __awaiter(void 0, void 0, void 0, function* () {
-    const hash = yield bcrypt_1.default.hash(password, 12);
-    return hash;
-});
-const userSchema = new mongoose_1.Schema({
-    name: {
-        type: String,
-        required: true,
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-    },
-    password: {
-        type: String,
-        required: true,
-    },
-    role: {
-        type: String,
-        enum: ["USER", "ADMIN"],
-        default: "USER",
-    },
-    payment: [{
-            type: mongoose_1.default.Schema.Types.ObjectId,
-            ref: "Payment", // Assuming Payment is the model name for payments
-        }],
-    refreshToken: {
-        type: String
+exports.uploadImage = exports.updateProfile = void 0;
+const response_helper_1 = require("../common/helper/response.helper");
+const profileService = __importStar(require("./profile.services"));
+const express_async_handler_1 = __importDefault(require("express-async-handler"));
+// PATCH or POST /api/profiles/update
+exports.updateProfile = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
+    if (!userId) {
+        console.log("No userId found in req.user");
+        res.status(401).json((0, response_helper_1.createResponse)(null, "Unauthorized"));
+        return;
     }
-});
-userSchema.pre("save", function (next) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (this.isModified("password")) {
-            this.password = yield hashPassword(this.password);
-        }
-        next();
+    const { phone, pancardNumber, dateOfBirth } = req.body;
+    const updatedProfile = yield profileService.updateProfile(userId, {
+        phone,
+        pancardNumber,
+        dateOfBirth
     });
-});
-exports.default = (0, mongoose_1.model)("User", userSchema);
+    res.json((0, response_helper_1.createResponse)(updatedProfile, "Profile updated successfully"));
+}));
+exports.uploadImage = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!req.file) {
+        res.status(400).send((0, response_helper_1.createResponse)(null, "No file uploaded"));
+        return;
+    }
+    if (!req.user) {
+        res.status(401).send((0, response_helper_1.createResponse)(null, "Unauthorized"));
+        return;
+    }
+    const result = yield profileService.uploadPanimage(req.file, req.user._id);
+    res.send((0, response_helper_1.createResponse)(result, "Image uploaded successfully"));
+}));
