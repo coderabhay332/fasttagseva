@@ -1,22 +1,8 @@
 import Razorpay from "razorpay";
-import crypto from "crypto";
 import Payment from "./payment.schema";
 import userSchema from "../user/user.schema";
+import crypto from 'crypto';
 
-// Define Razorpay order interface
-interface RazorpayOrder {
-  id: string;
-  amount: number;
-  amount_paid: number;
-  currency: string;
-  receipt: string;
-  status: string;
-  attempts: number;
-  notes: Record<string, string>;
-  created_at: number;
-}
-
-// Initialize Razorpay instance
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || '',
   key_secret: process.env.RAZORPAY_KEY_SECRET || ''
@@ -27,144 +13,245 @@ export const createPaymentService = async (
   customerName: string,
   customerEmail: string,
   customerPhone: string,
-  userId: string
+  userId: string,
+  applicationId: string,
+  bankName: string
 ) => {
-  try {
-    // Convert amount to paise (Razorpay uses smallest currency unit)
-    const amountInPaise = Math.round(amount * 100);
-    const receiptId = `order_${Date.now()}`;
+  // Validate environment variables
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    console.error("Missing Razorpay environment variables:", {
+      hasKeyId: !!process.env.RAZORPAY_KEY_ID,
+      hasKeySecret: !!process.env.RAZORPAY_KEY_SECRET
+    });
+    return {
+      success: false,
+      message: "Razorpay configuration is missing",
+      error: "RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not found"
+    };
+  }
 
-    // Create Razorpay order
-    const orderResponse = await razorpay.orders.create({
+  // Validate input parameters
+  if (!amount || amount <= 0) {
+    return {
+      success: false,
+      message: "Invalid amount",
+      error: "Amount must be greater than 0"
+    };
+  }
+
+  if (!customerName || !customerEmail || !customerPhone) {
+    return {
+      success: false,
+      message: "Missing customer information",
+      error: "Customer name, email, and phone are required"
+    };
+  }
+
+  console.log("Creating payment with params:", {
+    amount,
+    customerName,
+    customerEmail: customerEmail.substring(0, 3) + "...", // Log partial email for privacy
+    customerPhone: customerPhone.substring(0, 3) + "...", // Log partial phone for privacy
+    userId,
+    hasBaseUrl: !!process.env.BASE_URL
+  });
+
+  try {
+    const amountInPaise = Math.round(amount * 100);
+    const receiptId = `pl_${Date.now()}`;
+
+    // ✅ Create Razorpay Payment Link
+    console.log("Calling Razorpay API with payload:", {
       amount: amountInPaise,
       currency: "INR",
-      receipt: receiptId,
-      payment_capture: true, // Auto capture payment
-      notes: {
-        customerName,
-        customerEmail,
-        customerPhone,
-        userId: userId.toString()
-      }
+      description: `Payment for ${customerName}`
     });
     
-    // Type assertion for Razorpay order response
-    const order = orderResponse as RazorpayOrder;
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: amountInPaise,
+      currency: "INR",
+      accept_partial: false,
+      description: `Payment for ${customerName}`,
+      customer: {
+        name: customerName,
+        email: customerEmail,
+        contact: customerPhone,
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      reminder_enable: true,
+      notes: {
+        userId: userId.toString(),
+        customerName,
+        customerEmail,
+        customerPhone
+      },
+      callback_url: `${process.env.FRONTEND_BASE_URL || process.env.BASE_URL}/upload-documents/${applicationId}`,
+      callback_method: 'get'
+    });
 
-    // Generate payment URL
-    const paymentLink = `https://checkout.razorpay.com/v1/checkout.html?payment_id=${order.id}`;
-    
-    // Save payment to DB
+    // Save in DB
     const paymentDoc = await Payment.create({
-      orderId: order.id,
-      amount: amount,
-      currency: order.currency || "INR",
+      orderId: paymentLink.id,
+      amount,
+      currency: "INR",
       customerName,
       customerEmail,
       customerPhone,
-      paymentStatus: "CREATED",
-      paymentLink: paymentLink,
-      paymentSessionId: order.receipt,
-      response: order,
+      paymentStatus: paymentLink.status.toUpperCase(), // Convert to uppercase to match schema enum
+      paymentLink: paymentLink.short_url,
+      response: paymentLink,
       user: userId,
+      applicationId: applicationId,
+      bankName: bankName
     });
 
-    // Add payment reference to user
     await userSchema.findByIdAndUpdate(
       userId,
-      { $push: { payments: paymentDoc._id } },
+      { $addToSet: { payment: paymentDoc._id } },
       { new: true }
     );
 
-    // Return the payment URL and order details
     return {
       success: true,
       payment: {
         paymentId: paymentDoc._id,
-        orderId: order.id,
-        amount: amount,
-        currency: order.currency || "INR",
-        paymentStatus: "CREATED",
-        paymentUrl: paymentLink,
-        receipt: order.receipt,
+        orderId: paymentLink.id,
+        amount,
+        currency: "INR",
+        paymentStatus: paymentLink.status,
+        paymentUrl: paymentLink.short_url,
+        receipt: receiptId,
         createdAt: new Date()
       },
-      message: "Payment initiated successfully. Please complete the payment using the provided URL."
+      razorpayPaymentLink: paymentLink,
+      message: "Payment link created successfully"
     };
   } catch (error: unknown) {
-    console.error("Razorpay payment error:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    const errorDescription = error && typeof error === 'object' && 'error' in error 
-      ? (error as any).error?.description 
-      : undefined;
-      
+    console.error("Razorpay payment link error:", error);
+    
+    // Better error handling for different error types
+    let errorMessage = "Unknown error";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      // Handle Razorpay API errors
+      const razorpayError = error as any;
+      if (razorpayError.error) {
+        errorMessage = razorpayError.error.description || razorpayError.error.reason || JSON.stringify(razorpayError.error);
+      } else if (razorpayError.message) {
+        errorMessage = razorpayError.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
+    }
+    
     return {
       success: false,
-      message: "Failed to create payment order",
-      error: errorDescription || errorMessage,
+      message: "Failed to create payment link",
+      error: errorMessage
+    };
+  }
+};
+// Add this function to verify payment signature and update payment status
+// removed verifyPayment (using webhooks only)
+
+// Verify callback from Razorpay Payment Link redirect (GET flow)
+// removed verifyPaymentLink (using webhooks only)
+
+// Add this function to check order status
+export const checkOrderStatus = async (orderId: string) => {
+  try {
+    const order = await razorpay.orders.fetch(orderId);
+    return {
+      success: true,
+      order: order,
+      message: "Order details fetched successfully"
+    };
+  } catch (error: unknown) {
+    console.error("Error fetching order:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return {
+      success: false,
+      message: "Failed to fetch order details",
+      error: errorMessage
     };
   }
 };
 
-// Add this function to verify payment signature and update payment status
-export const verifyPayment = async (orderId: string, paymentId: string, signature: string) => {
-  try {
-    // Verify the payment signature
-    const text = orderId + "|" + paymentId;
-    const generatedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
-      .update(text)
-      .digest('hex');
+export const listPayments = async (userId: string, page: number = 1, limit: number = 10) => {
+  // Validate pagination parameters
+  const validPage = Math.max(1, page);
+  const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 items per page
+  const skip = (validPage - 1) * validLimit;
 
-    if (generatedSignature !== signature) {
-      return {
-        success: false,
-        message: 'Payment verification failed: Invalid signature'
-      };
-    }
+  // Get total count for pagination info
+  const totalCount = await Payment.countDocuments({ user: userId });
+  
+  // Get paginated payments with only specific fields
+  const payments = await Payment.find({ user: userId })
+    .select('amount customerName customerEmail customerPhone paymentStatus createdAt applicationId orderId paymentId bankName')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(validLimit);
 
-    // Fetch payment details from Razorpay
-    const payment = await razorpay.payments.fetch(paymentId);
-    
-    // Update payment status in database
-    const updateData: any = {
-      paymentStatus: payment.status === 'captured' ? 'PAID' : 'FAILED',
-      paymentId: payment.id,
-      paymentDate: new Date(payment.created_at * 1000), // Convert from seconds to milliseconds
-      'response.payment': payment
-    };
+  const totalPages = Math.ceil(totalCount / validLimit);
+  const hasNextPage = validPage < totalPages;
+  const hasPrevPage = validPage > 1;
 
-    if (payment.status === 'captured') {
-      updateData.paymentStatus = 'PAID';
-    } else if (payment.status === 'failed') {
-      updateData.paymentStatus = 'FAILED';
-    }
+  return {
+    success: true,
+    payments: payments,
+    pagination: {
+      currentPage: validPage,
+      totalPages,
+      totalCount,
+      limit: validLimit,
+      hasNextPage,
+      hasPrevPage,
+      nextPage: hasNextPage ? validPage + 1 : null,
+      prevPage: hasPrevPage ? validPage - 1 : null
+    },
+    message: "Payments fetched successfully"
+  };
+};
 
-    const updatedPayment = await Payment.findOneAndUpdate(
-      { orderId },
-      updateData,
-      { new: true }
-    );
+// Get payments by application ID (for admin panel)
+export const getPaymentsByApplication = async (applicationId: string, page: number = 1, limit: number = 10) => {
+  // Validate pagination parameters
+  const validPage = Math.max(1, page);
+  const validLimit = Math.min(100, Math.max(1, limit));
+  const skip = (validPage - 1) * validLimit;
 
-    if (!updatedPayment) {
-      return {
-        success: false,
-        message: 'Payment record not found'
-      };
-    }
+  // Get total count for pagination info
+  const totalCount = await Payment.countDocuments({ applicationId });
+  
+  // Get paginated payments with application details
+  const payments = await Payment.find({ applicationId })
+    .select('amount customerName customerEmail customerPhone paymentStatus paymentDate createdAt orderId paymentId bankName')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(validLimit);
 
-    return {
-      success: true,
-      payment: updatedPayment,
-      message: 'Payment verified and updated successfully'
-    };
-  } catch (error: unknown) {
-    console.error('Error verifying payment:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return {
-      success: false,
-      message: 'Error verifying payment',
-      error: errorMessage
-    };
-  }
+  const totalPages = Math.ceil(totalCount / validLimit);
+  const hasNextPage = validPage < totalPages;
+  const hasPrevPage = validPage > 1;
+
+  return {
+    success: true,
+    payments: payments,
+    pagination: {
+      currentPage: validPage,
+      totalPages,
+      totalCount,
+      limit: validLimit,
+      hasNextPage,
+      hasPrevPage,
+      nextPage: hasNextPage ? validPage + 1 : null,
+      prevPage: hasPrevPage ? validPage - 1 : null
+    },
+    message: "Application payments fetched successfully"
+  };
 };

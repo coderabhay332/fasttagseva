@@ -4,6 +4,19 @@ import { Request, Response } from "express";
 import * as profileService from "./profile.services";
 import asyncHandler from "express-async-handler";
 
+// GET /api/profiles/me
+export const getProfile = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    console.log("No userId found in req.user");
+    res.status(401).json(createResponse(null, "Unauthorized"));
+    return;
+  }
+
+  const profile = await profileService.getProfile(userId);
+  res.json(createResponse(profile, "Profile retrieved successfully"));
+});
+
 // PATCH or POST /api/profiles/update
 export const updateProfile = asyncHandler(async (req, res) => {
   const userId = req.user?._id;

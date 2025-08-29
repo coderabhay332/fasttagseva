@@ -45,6 +45,7 @@ const multer_1 = __importDefault(require("multer"));
 const upload = (0, multer_1.default)();
 const router = (0, express_1.Router)();
 router
+    .get("/me", catch_error_1.catchError, (0, role_auth_middleware_1.roleAuth)(["USER", "ADMIN"]), profileController.getProfile)
     .post("/update", catch_error_1.catchError, (0, role_auth_middleware_1.roleAuth)(["USER", "ADMIN"]), profileValidation.updateProfile, profileController.updateProfile)
     .post("/upload-image", (0, role_auth_middleware_1.roleAuth)(["USER", "ADMIN"]), upload.single("file"), profileController.uploadImage)
     .put("/update-image", (0, role_auth_middleware_1.roleAuth)(["USER", "ADMIN"]), upload.single("file"), profileController.uploadImage);

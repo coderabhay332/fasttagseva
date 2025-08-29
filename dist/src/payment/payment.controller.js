@@ -45,20 +45,35 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPaymentDetails = exports.listPayments = exports.verifyPayment = exports.createPayment = void 0;
+exports.getPaymentsByApplication = exports.getPaymentDetails = exports.listPayments = exports.checkOrderStatus = exports.createPayment = exports.testRazorpayConfig = void 0;
 const express_async_handler_1 = __importDefault(require("express-async-handler"));
 const express_async_handler_2 = __importDefault(require("express-async-handler"));
 const paymentService = __importStar(require("./payment.service"));
 const payment_schema_1 = __importDefault(require("./payment.schema"));
 const response_helper_1 = require("../common/helper/response.helper");
-/**
- * Controller to create a Razorpay payment order
- * Expects: { amount: number, customerName: string, customerEmail: string, customerPhone: string }
- * Returns: Razorpay order details for client-side integration
- */
+exports.testRazorpayConfig = (0, express_async_handler_2.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) {
+        res.status(500).json({
+            success: false,
+            message: "Razorpay configuration is missing",
+            error: "RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not found"
+        });
+        return;
+    }
+    res.json({
+        success: true,
+        message: "Razorpay configuration is valid",
+        data: {
+            keyId: keyId.substring(0, 10) + "...", // Show only first 10 characters for security
+            hasKeySecret: !!keySecret
+        }
+    });
+}));
 exports.createPayment = (0, express_async_handler_2.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { amount, customerName, customerEmail, customerPhone } = req.body;
-    if (!amount || !customerName || !customerEmail || !customerPhone) {
+    const { amount, customerName, customerEmail, customerPhone, applicationId, bankName } = req.body;
+    if (!amount || !customerName || !customerEmail || !customerPhone || !applicationId || !bankName) {
         res.status(400).json((0, response_helper_1.createResponse)(null, "Missing required fields"));
         return;
     }
@@ -66,7 +81,7 @@ exports.createPayment = (0, express_async_handler_2.default)((req, res) => __awa
         res.status(401).json((0, response_helper_1.createResponse)(null, "Unauthorized"));
         return;
     }
-    const result = yield paymentService.createPaymentService(amount, customerName, customerEmail, customerPhone, req.user._id);
+    const result = yield paymentService.createPaymentService(amount, customerName, customerEmail, customerPhone, req.user._id, applicationId, bankName);
     if (!result.success) {
         res.status(400).json({
             success: false,
@@ -75,7 +90,6 @@ exports.createPayment = (0, express_async_handler_2.default)((req, res) => __awa
         });
         return;
     }
-    // Return the payment URL and details to the client
     if (!result.payment) {
         res.status(500).json({
             success: false,
@@ -92,24 +106,20 @@ exports.createPayment = (0, express_async_handler_2.default)((req, res) => __awa
             amount: result.payment.amount,
             currency: result.payment.currency,
             paymentStatus: result.payment.paymentStatus,
-            paymentUrl: result.payment.paymentUrl,
+            paymentUrl: result.payment.paymentUrl, // ✅ Direct link for frontend
             receipt: result.payment.receipt,
             createdAt: result.payment.createdAt
         },
-        message: result.message || 'Payment initiated successfully'
+        message: result.message
     });
 }));
-/**
- * Webhook/Endpoint to verify payment signature and update payment status
- * This should be called after successful payment on the client side
- */
-exports.verifyPayment = (0, express_async_handler_2.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { orderId, paymentId, signature } = req.body;
-    if (!orderId || !paymentId || !signature) {
-        res.status(400).json((0, response_helper_1.createResponse)(null, "Missing required parameters"));
+exports.checkOrderStatus = (0, express_async_handler_2.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { orderId } = req.params;
+    if (!orderId) {
+        res.status(400).json((0, response_helper_1.createResponse)(null, "Order ID is required"));
         return;
     }
-    const result = yield paymentService.verifyPayment(orderId, paymentId, signature);
+    const result = yield paymentService.checkOrderStatus(orderId);
     if (!result.success) {
         res.status(400).json({
             success: false,
@@ -118,25 +128,21 @@ exports.verifyPayment = (0, express_async_handler_2.default)((req, res) => __awa
         });
         return;
     }
-    res.json((0, response_helper_1.createResponse)(result.payment, "Payment verified successfully"));
+    res.json((0, response_helper_1.createResponse)(result.order, "Order status fetched successfully"));
 }));
 /**
  * List all payments for the authenticated user
  */
-exports.listPayments = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+exports.listPayments = (0, express_async_handler_2.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (!req.user || !req.user._id) {
         res.status(401).json((0, response_helper_1.createResponse)(null, "Unauthorized"));
         return;
     }
-    try {
-        const payments = yield payment_schema_1.default.find({ user: req.user._id })
-            .sort({ createdAt: -1 });
-        res.json((0, response_helper_1.createResponse)(payments, "Payments fetched successfully"));
-    }
-    catch (error) {
-        console.error("Error fetching payments:", error);
-        res.status(500).json((0, response_helper_1.createResponse)(null, "Error fetching payments"));
-    }
+    // Extract pagination parameters from query
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const result = yield paymentService.listPayments(req.user._id, page, limit);
+    res.json((0, response_helper_1.createResponse)(result, "Payments fetched successfully"));
 }));
 /**
  * Get payment details by ID
@@ -160,3 +166,22 @@ exports.getPaymentDetails = (0, express_async_handler_1.default)((req, res) => _
         res.status(500).json((0, response_helper_1.createResponse)(null, "Error fetching payment details"));
     }
 }));
+/**
+ * Get payments by application ID (for admin panel)
+ */
+exports.getPaymentsByApplication = (0, express_async_handler_2.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { applicationId } = req.params;
+    if (!applicationId) {
+        res.status(400).json((0, response_helper_1.createResponse)(null, "Application ID is required"));
+        return;
+    }
+    // Extract pagination parameters from query
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const result = yield paymentService.getPaymentsByApplication(applicationId, page, limit);
+    res.json((0, response_helper_1.createResponse)(result, "Application payments fetched successfully"));
+}));
+/**
+ * Razorpay Webhook handler (uses raw body to compute signature)
+ * Header: x-razorpay-signature, Secret: process.env.RAZORPAY_WEBHOOK_SECRET (recommended)
+ */

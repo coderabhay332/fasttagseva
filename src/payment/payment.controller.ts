@@ -5,15 +5,35 @@ import Payment from "./payment.schema";
 import { createResponse } from "../common/helper/response.helper";
 import { Request, Response } from "express";
 
-/**
- * Controller to create a Razorpay payment order
- * Expects: { amount: number, customerName: string, customerEmail: string, customerPhone: string }
- * Returns: Razorpay order details for client-side integration
- */
-export const createPayment = asyncHandler(async (req: Request, res: Response) => {
-  const { amount, customerName, customerEmail, customerPhone } = req.body;
 
-  if (!amount || !customerName || !customerEmail || !customerPhone) {
+export const testRazorpayConfig = asyncHandler(async (req: Request, res: Response) => {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  
+  if (!keyId || !keySecret) {
+    res.status(500).json({
+      success: false,
+      message: "Razorpay configuration is missing",
+      error: "RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not found"
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: "Razorpay configuration is valid",
+    data: {
+      keyId: keyId.substring(0, 10) + "...", // Show only first 10 characters for security
+      hasKeySecret: !!keySecret
+    }
+  });
+});
+
+
+export const createPayment = asyncHandler(async (req: Request, res: Response) => {
+  const { amount, customerName, customerEmail, customerPhone, applicationId, bankName } = req.body;
+
+  if (!amount || !customerName || !customerEmail || !customerPhone || !applicationId || !bankName) {
     res.status(400).json(createResponse(null, "Missing required fields"));
     return;
   }
@@ -28,7 +48,9 @@ export const createPayment = asyncHandler(async (req: Request, res: Response) =>
     customerName,
     customerEmail,
     customerPhone,
-    req.user._id
+    req.user._id,
+    applicationId,
+    bankName
   );
 
   if (!result.success) {
@@ -40,7 +62,6 @@ export const createPayment = asyncHandler(async (req: Request, res: Response) =>
     return;
   }
 
-  // Return the payment URL and details to the client
   if (!result.payment) {
     res.status(500).json({
       success: false,
@@ -58,27 +79,24 @@ export const createPayment = asyncHandler(async (req: Request, res: Response) =>
       amount: result.payment.amount,
       currency: result.payment.currency,
       paymentStatus: result.payment.paymentStatus,
-      paymentUrl: result.payment.paymentUrl,
+      paymentUrl: result.payment.paymentUrl,  // ✅ Direct link for frontend
       receipt: result.payment.receipt,
       createdAt: result.payment.createdAt
     },
-    message: result.message || 'Payment initiated successfully'
+    message: result.message
   });
+  
 });
 
-/**
- * Webhook/Endpoint to verify payment signature and update payment status
- * This should be called after successful payment on the client side
- */
-export const verifyPayment = asyncHandler(async (req: Request, res: Response) => {
-  const { orderId, paymentId, signature } = req.body;
+export const checkOrderStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.params;
 
-  if (!orderId || !paymentId || !signature) {
-    res.status(400).json(createResponse(null, "Missing required parameters"));
+  if (!orderId) {
+    res.status(400).json(createResponse(null, "Order ID is required"));
     return;
   }
 
-  const result = await paymentService.verifyPayment(orderId, paymentId, signature);
+  const result = await paymentService.checkOrderStatus(orderId);
   
   if (!result.success) {
     res.status(400).json({
@@ -89,26 +107,24 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
     return;
   }
 
-  res.json(createResponse(result.payment, "Payment verified successfully"));
+  res.json(createResponse(result.order, "Order status fetched successfully"));
 });
 
 /**
  * List all payments for the authenticated user
  */
-export const listPayments = expressAsyncHandler(async (req: Request, res: Response) => {
+export const listPayments = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user || !req.user._id) {
     res.status(401).json(createResponse(null, "Unauthorized"));
     return;
   }
+
+  // Extract pagination parameters from query
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
   
-  try {
-    const payments = await Payment.find({ user: req.user._id })
-      .sort({ createdAt: -1 });
-    res.json(createResponse(payments, "Payments fetched successfully"));
-  } catch (error) {
-    console.error("Error fetching payments:", error);
-    res.status(500).json(createResponse(null, "Error fetching payments"));
-  }
+  const result = await paymentService.listPayments(req.user._id, page, limit);
+  res.json(createResponse(result, "Payments fetched successfully"));
 });
 
 /**
@@ -134,3 +150,27 @@ export const getPaymentDetails = expressAsyncHandler(async (req: Request, res: R
     res.status(500).json(createResponse(null, "Error fetching payment details"));
   }
 });
+
+/**
+ * Get payments by application ID (for admin panel)
+ */
+export const getPaymentsByApplication = asyncHandler(async (req: Request, res: Response) => {
+  const { applicationId } = req.params;
+  
+  if (!applicationId) {
+    res.status(400).json(createResponse(null, "Application ID is required"));
+    return;
+  }
+
+  // Extract pagination parameters from query
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  
+  const result = await paymentService.getPaymentsByApplication(applicationId, page, limit);
+  res.json(createResponse(result, "Application payments fetched successfully"));
+});
+
+/**
+ * Razorpay Webhook handler (uses raw body to compute signature)
+ * Header: x-razorpay-signature, Secret: process.env.RAZORPAY_WEBHOOK_SECRET (recommended)
+ */

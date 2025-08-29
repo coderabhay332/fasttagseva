@@ -45,48 +45,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadImage = exports.updateProfile = exports.getProfile = void 0;
-const response_helper_1 = require("../common/helper/response.helper");
-const profileService = __importStar(require("./profile.services"));
+exports.updateDelivery = exports.getDelivery = exports.createDelivery = void 0;
+const deliveryService = __importStar(require("./delivery.services"));
 const express_async_handler_1 = __importDefault(require("express-async-handler"));
-// GET /api/profiles/me
-exports.getProfile = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+exports.createDelivery = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
-    if (!userId) {
-        console.log("No userId found in req.user");
-        res.status(401).json((0, response_helper_1.createResponse)(null, "Unauthorized"));
-        return;
-    }
-    const profile = yield profileService.getProfile(userId);
-    res.json((0, response_helper_1.createResponse)(profile, "Profile retrieved successfully"));
+    const { orderId, deliveryAddress, trackingNumber } = req.body;
+    const delivery = yield deliveryService.createDelivery((_a = req.user) === null || _a === void 0 ? void 0 : _a._id, orderId, deliveryAddress, trackingNumber);
+    res.status(201).json(delivery);
 }));
-// PATCH or POST /api/profiles/update
-exports.updateProfile = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+exports.getDelivery = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
-    if (!userId) {
-        console.log("No userId found in req.user");
-        res.status(401).json((0, response_helper_1.createResponse)(null, "Unauthorized"));
-        return;
-    }
-    const { phone, pancardNumber, dateOfBirth } = req.body;
-    const updatedProfile = yield profileService.updateProfile(userId, {
-        phone,
-        pancardNumber,
-        dateOfBirth
-    });
-    res.json((0, response_helper_1.createResponse)(updatedProfile, "Profile updated successfully"));
+    const delivery = yield deliveryService.getDelivery((_a = req.user) === null || _a === void 0 ? void 0 : _a._id);
+    res.status(200).json(delivery);
 }));
-exports.uploadImage = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!req.file) {
-        res.status(400).send((0, response_helper_1.createResponse)(null, "No file uploaded"));
-        return;
-    }
-    if (!req.user) {
-        res.status(401).send((0, response_helper_1.createResponse)(null, "Unauthorized"));
-        return;
-    }
-    const result = yield profileService.uploadPanimage(req.file, req.user._id);
-    res.send((0, response_helper_1.createResponse)(result, "Image uploaded successfully"));
+exports.updateDelivery = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const { orderId, deliveryAddress, trackingNumber } = req.body;
+    const delivery = yield deliveryService.updateDelivery((_a = req.user) === null || _a === void 0 ? void 0 : _a._id, orderId, deliveryAddress, trackingNumber);
+    res.status(200).json(delivery);
 }));

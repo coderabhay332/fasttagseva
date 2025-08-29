@@ -2,6 +2,11 @@ import { Profile } from "./profile.schema";
 import { IProfile } from "./profile.dto";
 import { uploadImage } from "../common/services/cloudinary.services";
 
+export const getProfile = async (userId: string) => {
+  const profile = await Profile.findOne({ userId });
+  return profile;
+};
+
 export const updateProfile = async (
     userId: string,
     profileData: Partial<IProfile>

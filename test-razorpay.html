@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Razorpay Checkout URL</title>
+</head>
+<body>
+    <h1>Razorpay Checkout URL Test</h1>
+    
+    <div>
+        <h2>Test Configuration</h2>
+        <button onclick="testConfig()">Test Razorpay Config</button>
+        <div id="config-result"></div>
+    </div>
+
+    <div>
+        <h2>Test Payment URL</h2>
+        <p>Enter the payment URL from your API response:</p>
+        <input type="text" id="paymentUrl" placeholder="Paste the payment URL here" style="width: 100%; margin: 10px 0;">
+        <button onclick="testPaymentUrl()">Test Payment URL</button>
+        <div id="url-result"></div>
+    </div>
+
+    <div>
+        <h2>Check Order Status</h2>
+        <p>Enter the order ID to check its status:</p>
+        <input type="text" id="orderId" placeholder="Enter order ID (e.g., order_R6gbffbLBEHp3n)" style="width: 100%; margin: 10px 0;">
+        <button onclick="checkOrderStatus()">Check Order Status</button>
+        <div id="order-status-result"></div>
+    </div>
+
+    <div>
+        <h2>Direct Test</h2>
+        <p>Test with a simple Razorpay checkout URL:</p>
+        <button onclick="testDirectUrl()">Test Direct URL</button>
+        <div id="direct-result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api/payments';
+
+        async function testConfig() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/test-config`);
+                const result = await response.json();
+                
+                const resultDiv = document.getElementById('config-result');
+                resultDiv.innerHTML = `
+                    <h3>Configuration Test Result:</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('config-result').innerHTML = `
+                    <h3>Error:</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+
+        function testPaymentUrl() {
+            const url = document.getElementById('paymentUrl').value;
+            if (!url) {
+                alert('Please enter a payment URL');
+                return;
+            }
+
+            const resultDiv = document.getElementById('url-result');
+            resultDiv.innerHTML = `
+                <h3>Testing URL:</h3>
+                <p><a href="${url}" target="_blank">${url}</a></p>
+                <p>Click the link above to test the payment URL in a new tab.</p>
+                <p>If the page is empty, there might be an issue with the URL format or parameters.</p>
+            `;
+        }
+
+        async function checkOrderStatus() {
+            const orderId = document.getElementById('orderId').value;
+            if (!orderId) {
+                alert('Please enter an order ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/order-status/${orderId}`);
+                const result = await response.json();
+                
+                const resultDiv = document.getElementById('order-status-result');
+                resultDiv.innerHTML = `
+                    <h3>Order Status Result:</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('order-status-result').innerHTML = `
+                    <h3>Error:</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+
+        function testDirectUrl() {
+            // Test with a minimal Razorpay URL format
+            const testUrl = 'https://checkout.razorpay.com/v1/checkout.html?key=rzp_test_R5UgJ04op15U9a&order_id=order_R6gQLJmb5DbIpk';
+            
+            const resultDiv = document.getElementById('direct-result');
+            resultDiv.innerHTML = `
+                <h3>Direct Test URL:</h3>
+                <p><a href="${testUrl}" target="_blank">${testUrl}</a></p>
+                <p>This is a minimal test URL. If this works but your generated URL doesn't, there's an issue with the URL generation.</p>
+            `;
+        }
+    </script>
+</body>
+</html>

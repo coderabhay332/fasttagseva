@@ -10,7 +10,11 @@ const applicationSchema = new mongoose.Schema({
     enum: ["NOT SUBMITTED", "PENDING", "AGENT ASSIGNED", "REJECTED", "DONE"],
     default: "NOT SUBMITTED"
   },
-});
+  rcImage: { type: String, required: false },
+  panImage: { type: String, required: false },
+  vehicleFrontImage: { type: String, required: false },
+  vehicleSideImage: { type: String, required: false }
+}, { timestamps: true });
 
 const Application = mongoose.model("Application", applicationSchema);
 

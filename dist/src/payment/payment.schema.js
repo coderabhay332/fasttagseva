@@ -21,6 +21,9 @@ const paymentSchema = new mongoose_1.default.Schema({
     paymentSessionId: { type: String }, // Receipt ID from Razorpay
     response: { type: mongoose_1.default.Schema.Types.Mixed }, // Raw Razorpay response
     user: { type: mongoose_1.default.Schema.Types.ObjectId, ref: "User" },
+    applicationId: { type: mongoose_1.default.Schema.Types.ObjectId, ref: "Application" },
+    bankName: { type: String },
+    // Link to application
     paymentDate: { type: Date }, // When the payment was completed
 }, { timestamps: true });
 const Payment = mongoose_1.default.model("Payment", paymentSchema);

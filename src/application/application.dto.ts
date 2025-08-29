@@ -11,4 +11,8 @@ interface IApplication extends BaseSchema {
   engineNumber: string;
   chasisNumber: string;
   status: ApplicationStatus;
+  panImage: string;
+  rcImage: string;
+  vehicleFrontImage: string;
+  vehicleSideImage: string;
 }

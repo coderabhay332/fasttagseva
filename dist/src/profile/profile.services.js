@@ -9,9 +9,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadPanimage = exports.updateProfile = void 0;
+exports.uploadPanimage = exports.updateProfile = exports.getProfile = void 0;
 const profile_schema_1 = require("./profile.schema");
 const cloudinary_services_1 = require("../common/services/cloudinary.services");
+const getProfile = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const profile = yield profile_schema_1.Profile.findOne({ userId });
+    return profile;
+});
+exports.getProfile = getProfile;
 const updateProfile = (userId, profileData) => __awaiter(void 0, void 0, void 0, function* () {
     const updated = yield profile_schema_1.Profile.findOneAndUpdate({ userId }, Object.assign({ userId }, profileData), { new: true, upsert: true });
     console.log("Profile upserted result:", updated);
