@@ -17,6 +17,15 @@ if (!process.env.VERCEL) {
   dotenv.config();
 }
 
+// Add debugging for Vercel environment
+if (process.env.VERCEL) {
+  console.log("Running in Vercel environment");
+  console.log("NODE_ENV:", process.env.NODE_ENV);
+  console.log("Available environment variables:", Object.keys(process.env).filter(key => 
+    key.includes('MONGODB') || key.includes('EMAIL') || key.includes('CLOUDINARY') || key.includes('JWT')
+  ));
+}
+
 declare global {
   namespace Express {
     interface User extends Omit<IUser, "password"> {}
@@ -49,20 +58,53 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(morgan("dev"));
 
 const initApp = async (): Promise<void> => {
-  await initDB();
-  initPassport();
+  try {
+    console.log("Starting app initialization...");
+    
+    await initDB();
+    console.log("Database initialized");
+    
+    initPassport();
+    console.log("Passport initialized");
 
-  app.use("/api", routes);
+    app.use("/api", routes);
+    console.log("Routes configured");
 
-  app.get("/", (_, res) => {
-    res.send({ status: "ok" });
-  });
+    app.get("/", (_, res) => {
+      res.send({ status: "ok" });
+    });
 
-  app.use(errorHandler);
+    app.use(errorHandler);
+    console.log("Error handler configured");
 
-  http.createServer(app).listen(port, () => {
-    console.log("Server running on port", port);
-  });
+    // Only start server if not in Vercel environment
+    if (!process.env.VERCEL) {
+      http.createServer(app).listen(port, () => {
+        console.log("Server running on port", port);
+      });
+    } else {
+      console.log("App ready for Vercel deployment");
+    }
+  } catch (error) {
+    console.error("Failed to initialize app:", error);
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'Unknown'
+    });
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
+  }
 };
 
-void initApp();
+// Export the app for Vercel
+export default app;
+
+// Only run initApp if not in Vercel environment
+if (!process.env.VERCEL) {
+  void initApp();
+} else {
+  // Initialize for Vercel
+  void initApp();
+}

@@ -43,7 +43,12 @@ const passport_1 = __importDefault(require("passport"));
 const multer_1 = __importDefault(require("multer"));
 const role_auth_middleware_1 = require("../common/middleware/role-auth.middleware");
 const router = (0, express_1.Router)();
-const upload = (0, multer_1.default)();
+const upload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    }
+});
 router.
     post("/create", userValidation.createUser, userController.createUser)
     .post("/login", userValidation.login, passport_1.default.authenticate('login', { session: false }), userController.login)

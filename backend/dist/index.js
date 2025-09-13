@@ -29,6 +29,12 @@ const payment_webhook_1 = require("./src/payment/payment.webhook");
 if (!process.env.VERCEL) {
     dotenv_1.default.config();
 }
+// Add debugging for Vercel environment
+if (process.env.VERCEL) {
+    console.log("Running in Vercel environment");
+    console.log("NODE_ENV:", process.env.NODE_ENV);
+    console.log("Available environment variables:", Object.keys(process.env).filter(key => key.includes('MONGODB') || key.includes('EMAIL') || key.includes('CLOUDINARY') || key.includes('JWT')));
+}
 const port = (_a = Number(process.env.PORT)) !== null && _a !== void 0 ? _a : 5000;
 const app = (0, express_1.default)();
 // 👇 Register webhook route with RAW body parser FIRST
@@ -46,15 +52,48 @@ app.use(express_1.default.json()); // safe AFTER webhook
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use((0, morgan_1.default)("dev"));
 const initApp = () => __awaiter(void 0, void 0, void 0, function* () {
-    yield (0, database_services_1.initDB)();
-    (0, passport_jwt_services_1.initPassport)();
-    app.use("/api", routes_1.default);
-    app.get("/", (_, res) => {
-        res.send({ status: "ok" });
-    });
-    app.use(error_handler_1.default);
-    http_1.default.createServer(app).listen(port, () => {
-        console.log("Server running on port", port);
-    });
+    try {
+        console.log("Starting app initialization...");
+        yield (0, database_services_1.initDB)();
+        console.log("Database initialized");
+        (0, passport_jwt_services_1.initPassport)();
+        console.log("Passport initialized");
+        app.use("/api", routes_1.default);
+        console.log("Routes configured");
+        app.get("/", (_, res) => {
+            res.send({ status: "ok" });
+        });
+        app.use(error_handler_1.default);
+        console.log("Error handler configured");
+        // Only start server if not in Vercel environment
+        if (!process.env.VERCEL) {
+            http_1.default.createServer(app).listen(port, () => {
+                console.log("Server running on port", port);
+            });
+        }
+        else {
+            console.log("App ready for Vercel deployment");
+        }
+    }
+    catch (error) {
+        console.error("Failed to initialize app:", error);
+        console.error("Error details:", {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            name: error instanceof Error ? error.name : 'Unknown'
+        });
+        if (!process.env.VERCEL) {
+            process.exit(1);
+        }
+    }
 });
-void initApp();
+// Export the app for Vercel
+exports.default = app;
+// Only run initApp if not in Vercel environment
+if (!process.env.VERCEL) {
+    void initApp();
+}
+else {
+    // Initialize for Vercel
+    void initApp();
+}

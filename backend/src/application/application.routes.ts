@@ -7,7 +7,12 @@ import { createApplication } from "./application.controllers";
 import { updateStatusValidation } from "./application.validations";
 import multer from "multer";
 const router = Router();
-const upload = multer();
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
+});
 
 
 router

@@ -7,7 +7,12 @@ import multer from "multer";
 
 import { roleAuth } from "../common/middleware/role-auth.middleware";
 const router = Router();
-const upload = multer();
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
+});
 
 router.
   post("/create", userValidation.createUser, userController.createUser)

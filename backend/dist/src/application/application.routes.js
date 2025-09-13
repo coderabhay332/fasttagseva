@@ -43,7 +43,12 @@ const catch_error_1 = require("../common/middleware/catch-error");
 const role_auth_middleware_1 = require("../common/middleware/role-auth.middleware");
 const multer_1 = __importDefault(require("multer"));
 const router = (0, express_1.Router)();
-const upload = (0, multer_1.default)();
+const upload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    }
+});
 router
     .post("/create", (0, role_auth_middleware_1.roleAuth)(["USER", "ADMIN"]), applicationValidation.createApplicationValidation, catch_error_1.catchError, applicationController.createApplication)
     .put("/update/:id", (0, role_auth_middleware_1.roleAuth)(["USER", "ADMIN"]), applicationValidation.idParamValidation, applicationValidation.updateApplicationValidation, catch_error_1.catchError, applicationController.updateApplication)
