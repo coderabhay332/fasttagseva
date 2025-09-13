@@ -1,7 +1,11 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { loadConfig } from '../helper/config.helper';
-require('dotenv').config();
-loadConfig();
+
+// Load config only in non-Vercel environments
+if (!process.env.VERCEL) {
+  require('dotenv').config();
+  loadConfig();
+}
 
 
 

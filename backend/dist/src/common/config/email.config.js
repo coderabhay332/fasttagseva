@@ -6,8 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.transporter = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const config_helper_1 = require("../helper/config.helper");
-require('dotenv').config();
-(0, config_helper_1.loadConfig)();
+// Load config only in non-Vercel environments
+if (!process.env.VERCEL) {
+    require('dotenv').config();
+    (0, config_helper_1.loadConfig)();
+}
 console.log(process.env.EMAIL_USER, process.env.EMAIL_PASS);
 exports.transporter = nodemailer_1.default.createTransport({
     service: "gmail",

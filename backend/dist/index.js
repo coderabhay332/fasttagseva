@@ -25,7 +25,10 @@ const database_services_1 = require("./src/common/services/database.services");
 const passport_jwt_services_1 = require("./src/common/services/passport-jwt.services");
 const routes_1 = __importDefault(require("./src/routes"));
 const payment_webhook_1 = require("./src/payment/payment.webhook");
-dotenv_1.default.config();
+// Only load dotenv in non-Vercel environments
+if (!process.env.VERCEL) {
+    dotenv_1.default.config();
+}
 const port = (_a = Number(process.env.PORT)) !== null && _a !== void 0 ? _a : 5000;
 const app = (0, express_1.default)();
 // 👇 Register webhook route with RAW body parser FIRST
@@ -34,10 +37,7 @@ payment_webhook_1.verifyWebhook);
 // 👇 Other middlewares
 app.use((0, cors_1.default)({
     origin: [
-        "http://localhost:3000",
-        "https://memora-gray.vercel.app",
-        "http://localhost:5500",
-        "http://localhost:5173"
+        "https://fastagseva-frontend.vercel.app/"
     ],
     credentials: true,
 }));

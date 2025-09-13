@@ -12,7 +12,10 @@ import { IUser } from "./src/user/user.dto";
 import routes from "./src/routes";
 import { verifyWebhook as paymentsWebhookHandler } from "./src/payment/payment.webhook";
 
-dotenv.config();
+// Only load dotenv in non-Vercel environments
+if (!process.env.VERCEL) {
+  dotenv.config();
+}
 
 declare global {
   namespace Express {

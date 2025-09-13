@@ -1,7 +1,12 @@
 import nodemailer from "nodemailer";
 import { loadConfig } from "../helper/config.helper";
-require('dotenv').config();
-loadConfig();
+
+// Load config only in non-Vercel environments
+if (!process.env.VERCEL) {
+  require('dotenv').config();
+  loadConfig();
+}
+
 console.log(process.env.EMAIL_USER, process.env.EMAIL_PASS);
 export const transporter = nodemailer.createTransport({
   service: "gmail",
