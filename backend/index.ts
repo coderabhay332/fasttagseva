@@ -36,10 +36,7 @@ app.post(
 // 👇 Other middlewares
 app.use(cors({
   origin: [
-    "http://localhost:3000",
-    "https://memora-gray.vercel.app",
-    "http://localhost:5500",
-    "http://localhost:5173"
+   "https://fastagseva-frontend.vercel.app/"
   ],
   credentials: true,
 }));
