@@ -57,6 +57,17 @@ app.use(express.json()); // safe AFTER webhook
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(morgan("dev"));
 
+// Set up routes immediately for Vercel
+app.use("/api", routes);
+console.log("Routes configured");
+
+app.get("/", (_, res) => {
+  res.send({ status: "ok" });
+});
+
+app.use(errorHandler);
+console.log("Error handler configured");
+
 const initApp = async (): Promise<void> => {
   try {
     console.log("Starting app initialization...");
@@ -66,16 +77,6 @@ const initApp = async (): Promise<void> => {
     
     initPassport();
     console.log("Passport initialized");
-
-    app.use("/api", routes);
-    console.log("Routes configured");
-
-    app.get("/", (_, res) => {
-      res.send({ status: "ok" });
-    });
-
-    app.use(errorHandler);
-    console.log("Error handler configured");
 
     // Only start server if not in Vercel environment
     if (!process.env.VERCEL) {
