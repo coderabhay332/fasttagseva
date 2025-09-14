@@ -168,7 +168,7 @@ const checkOrderStatus = (orderId) => __awaiter(void 0, void 0, void 0, function
     }
 });
 exports.checkOrderStatus = checkOrderStatus;
-const listPayments = (userId_1, ...args_1) => __awaiter(void 0, [userId_1, ...args_1], void 0, function* (userId, page = 1, limit = 10) {
+const listPayments = (userId, page = 1, limit = 10) => __awaiter(void 0, void 0, void 0, function* () {
     // Validate pagination parameters
     const validPage = Math.max(1, page);
     const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 items per page
@@ -202,7 +202,7 @@ const listPayments = (userId_1, ...args_1) => __awaiter(void 0, [userId_1, ...ar
 });
 exports.listPayments = listPayments;
 // Get payments by application ID (for admin panel)
-const getPaymentsByApplication = (applicationId_1, ...args_1) => __awaiter(void 0, [applicationId_1, ...args_1], void 0, function* (applicationId, page = 1, limit = 10) {
+const getPaymentsByApplication = (applicationId, page = 1, limit = 10) => __awaiter(void 0, void 0, void 0, function* () {
     // Validate pagination parameters
     const validPage = Math.max(1, page);
     const validLimit = Math.min(100, Math.max(1, limit));

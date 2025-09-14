@@ -51,6 +51,14 @@ app.use((0, helmet_1.default)());
 app.use(express_1.default.json()); // safe AFTER webhook
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use((0, morgan_1.default)("dev"));
+// Set up routes immediately for Vercel
+app.use("/api", routes_1.default);
+console.log("Routes configured");
+app.get("/", (_, res) => {
+    res.send({ status: "ok" });
+});
+app.use(error_handler_1.default);
+console.log("Error handler configured");
 const initApp = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         console.log("Starting app initialization...");
@@ -58,13 +66,6 @@ const initApp = () => __awaiter(void 0, void 0, void 0, function* () {
         console.log("Database initialized");
         (0, passport_jwt_services_1.initPassport)();
         console.log("Passport initialized");
-        app.use("/api", routes_1.default);
-        console.log("Routes configured");
-        app.get("/", (_, res) => {
-            res.send({ status: "ok" });
-        });
-        app.use(error_handler_1.default);
-        console.log("Error handler configured");
         // Only start server if not in Vercel environment
         if (!process.env.VERCEL) {
             http_1.default.createServer(app).listen(port, () => {

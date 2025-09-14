@@ -41,7 +41,7 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
         const eventType = event.event;
         console.log("Webhook verified:", { event: eventType });
         const updatePaymentFromWebhook = (eventType, plEntity, payEntity, rawEvent) => __awaiter(void 0, void 0, void 0, function* () {
-            var _a, _b, _c;
+            var _g, _h, _j;
             try {
                 console.log('updatePaymentFromWebhook called with:', { eventType, plEntity, payEntity }); // <-- Add this
                 const paymentLinkId = (plEntity === null || plEntity === void 0 ? void 0 : plEntity.id) || (payEntity === null || payEntity === void 0 ? void 0 : payEntity.link_id);
@@ -51,7 +51,7 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
                     return { success: false, message: 'Missing identifiers from webhook' };
                 }
                 // Determine status
-                let sourceStatus = ((plEntity === null || plEntity === void 0 ? void 0 : plEntity.status) || (payEntity === null || payEntity === void 0 ? void 0 : payEntity.status) || ((_c = (_b = (_a = rawEvent === null || rawEvent === void 0 ? void 0 : rawEvent.payload) === null || _a === void 0 ? void 0 : _a.payment_link) === null || _b === void 0 ? void 0 : _b.entity) === null || _c === void 0 ? void 0 : _c.status) || '').toLowerCase();
+                let sourceStatus = ((plEntity === null || plEntity === void 0 ? void 0 : plEntity.status) || (payEntity === null || payEntity === void 0 ? void 0 : payEntity.status) || ((_j = (_h = (_g = rawEvent === null || rawEvent === void 0 ? void 0 : rawEvent.payload) === null || _g === void 0 ? void 0 : _g.payment_link) === null || _h === void 0 ? void 0 : _h.entity) === null || _j === void 0 ? void 0 : _j.status) || '').toLowerCase();
                 // Map 'created' to 'PAID' only for successful payment events
                 if (sourceStatus === 'created' &&
                     (eventType === 'payment.link.paid' || eventType === 'payment.captured')) {

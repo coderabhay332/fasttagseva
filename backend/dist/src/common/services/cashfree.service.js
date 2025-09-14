@@ -21,8 +21,8 @@ const SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
 const BASE_URL = process.env.CASHFREE_ENV === 'PROD'
     ? 'https://api.cashfree.com/pg'
     : 'https://sandbox.cashfree.com/pg';
-const createPaymentLink = (_a) => __awaiter(void 0, [_a], void 0, function* ({ orderId, amount, customerPhone, customerName, customerEmail, }) {
-    var _b, _c;
+const createPaymentLink = ({ orderId, amount, customerPhone, customerName, customerEmail, }) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     try {
         const response = yield axios_1.default.post(`${BASE_URL}/orders`, {
             order_id: orderId,
@@ -50,7 +50,7 @@ const createPaymentLink = (_a) => __awaiter(void 0, [_a], void 0, function* ({ o
         return response.data;
     }
     catch (err) {
-        throw new Error(((_c = (_b = err === null || err === void 0 ? void 0 : err.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.message) || 'Cashfree Payment Link Error');
+        throw new Error(((_b = (_a = err === null || err === void 0 ? void 0 : err.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || 'Cashfree Payment Link Error');
     }
 });
 exports.createPaymentLink = createPaymentLink;
