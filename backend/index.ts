@@ -47,14 +47,28 @@ app.post(
 
 // 👇 Other middlewares
 app.use(cors({
-  origin: [
-    "https://fastagseva-frontend.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:3001"
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      "https://fastagseva-frontend.vercel.app",
+      "https://fasttagseva-c8zo.vercel.app",
+      "http://localhost:3000",
+      "http://localhost:3001"
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use(helmet());
 app.use(express.json()); // safe AFTER webhook
