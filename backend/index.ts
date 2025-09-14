@@ -54,6 +54,7 @@ app.use(cors({
     const allowedOrigins = [
       "https://fastagseva-frontend.vercel.app",
       "https://fasttagseva-c8zo.vercel.app",
+      "https://fasttagseva.onrender.com",
       "http://localhost:3000",
       "http://localhost:3001"
     ];
