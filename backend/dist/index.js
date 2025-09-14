@@ -43,9 +43,13 @@ payment_webhook_1.verifyWebhook);
 // 👇 Other middlewares
 app.use((0, cors_1.default)({
     origin: [
-        "https://fastagseva-frontend.vercel.app/"
+        "https://fastagseva-frontend.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001"
     ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 }));
 app.use((0, helmet_1.default)());
 app.use(express_1.default.json()); // safe AFTER webhook
