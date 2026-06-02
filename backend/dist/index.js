@@ -11,7 +11,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
@@ -35,7 +34,7 @@ if (process.env.VERCEL) {
     console.log("NODE_ENV:", process.env.NODE_ENV);
     console.log("Available environment variables:", Object.keys(process.env).filter(key => key.includes('MONGODB') || key.includes('EMAIL') || key.includes('CLOUDINARY') || key.includes('JWT')));
 }
-const port = (_a = Number(process.env.PORT)) !== null && _a !== void 0 ? _a : 5000;
+const port = Number(process.env.PORT) || 8080;
 const app = (0, express_1.default)();
 // 👇 Register webhook route with RAW body parser FIRST
 app.post("/api/payments/webhook", body_parser_1.default.raw({ type: "application/json" }), // keep raw body for signature verification
@@ -49,6 +48,9 @@ app.use((0, cors_1.default)({
         const allowedOrigins = [
             "https://fastagseva-frontend.vercel.app",
             "https://fasttagseva-c8zo.vercel.app",
+            "https://fasttagseva.onrender.com",
+            "http://fasttag-backend-prod.elasticbeanstalk.com",
+            "https://fasttag-backend-prod.elasticbeanstalk.com",
             "http://localhost:3000",
             "http://localhost:3001"
         ];

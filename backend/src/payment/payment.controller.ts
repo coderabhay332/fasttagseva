@@ -31,10 +31,19 @@ export const testRazorpayConfig = asyncHandler(async (req: Request, res: Respons
 
 
 export const createPayment = asyncHandler(async (req: Request, res: Response) => {
-  const { amount, customerName, customerEmail, customerPhone, applicationId, bankName } = req.body;
+  const { amount, customerName, customerEmail, customerPhone, applicationId, bankName, paymentMethod } = req.body;
 
   if (!amount || !customerName || !customerEmail || !customerPhone || !applicationId || !bankName) {
     res.status(400).json(createResponse(null, "Missing required fields"));
+    return;
+  }
+
+  // Validate payment method if provided
+  const validPaymentMethods = ["CARD", "NET_BANKING", "UPI", "WALLET", "EMI", "OTHER"];
+  const selectedPaymentMethod = paymentMethod || "CARD";
+  
+  if (!validPaymentMethods.includes(selectedPaymentMethod.toUpperCase())) {
+    res.status(400).json(createResponse(null, "Invalid payment method. Supported methods: CARD, NET_BANKING, UPI, WALLET, EMI, OTHER"));
     return;
   }
 
@@ -50,7 +59,8 @@ export const createPayment = asyncHandler(async (req: Request, res: Response) =>
     customerPhone,
     req.user._id,
     applicationId,
-    bankName
+    bankName,
+    selectedPaymentMethod
   );
 
   if (!result.success) {
@@ -80,6 +90,7 @@ export const createPayment = asyncHandler(async (req: Request, res: Response) =>
       currency: result.payment.currency,
       paymentStatus: result.payment.paymentStatus,
       paymentUrl: result.payment.paymentUrl,  // ✅ Direct link for frontend
+      paymentMethod: result.payment.paymentMethod,
       receipt: result.payment.receipt,
       createdAt: result.payment.createdAt
     },

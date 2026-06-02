@@ -20,7 +20,7 @@ const razorpay = new razorpay_1.default({
     key_id: process.env.RAZORPAY_KEY_ID || '',
     key_secret: process.env.RAZORPAY_KEY_SECRET || ''
 });
-const createPaymentService = (amount, customerName, customerEmail, customerPhone, userId, applicationId, bankName) => __awaiter(void 0, void 0, void 0, function* () {
+const createPaymentService = (amount_1, customerName_1, customerEmail_1, customerPhone_1, userId_1, applicationId_1, bankName_1, ...args_1) => __awaiter(void 0, [amount_1, customerName_1, customerEmail_1, customerPhone_1, userId_1, applicationId_1, bankName_1, ...args_1], void 0, function* (amount, customerName, customerEmail, customerPhone, userId, applicationId, bankName, paymentMethod = "CARD") {
     // Validate environment variables
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
         console.error("Missing Razorpay environment variables:", {
@@ -64,7 +64,8 @@ const createPaymentService = (amount, customerName, customerEmail, customerPhone
             currency: "INR",
             description: `Payment for ${customerName}`
         });
-        const paymentLink = yield razorpay.paymentLink.create({
+        // Configure payment methods based on the selected method
+        const paymentLinkOptions = {
             amount: amountInPaise,
             currency: "INR",
             accept_partial: false,
@@ -83,11 +84,25 @@ const createPaymentService = (amount, customerName, customerEmail, customerPhone
                 userId: userId.toString(),
                 customerName,
                 customerEmail,
-                customerPhone
+                customerPhone,
+                paymentMethod
             },
             callback_url: `${process.env.FRONTEND_BASE_URL || process.env.BASE_URL}/upload-documents/${applicationId}`,
             callback_method: 'get'
-        });
+        };
+        // Add UPI configuration to make it prominent
+        if (paymentMethod === "UPI") {
+            paymentLinkOptions.options = {
+                checkout: {
+                    method: {
+                        upi: {
+                            flow: "intent" // This makes UPI the primary payment method
+                        }
+                    }
+                }
+            };
+        }
+        const paymentLink = yield razorpay.paymentLink.create(paymentLinkOptions);
         // Save in DB
         const paymentDoc = yield payment_schema_1.default.create({
             orderId: paymentLink.id,
@@ -101,7 +116,8 @@ const createPaymentService = (amount, customerName, customerEmail, customerPhone
             response: paymentLink,
             user: userId,
             applicationId: applicationId,
-            bankName: bankName
+            bankName: bankName,
+            paymentMethod: paymentMethod.toUpperCase()
         });
         yield user_schema_1.default.findByIdAndUpdate(userId, { $addToSet: { payment: paymentDoc._id } }, { new: true });
         return {
@@ -113,6 +129,7 @@ const createPaymentService = (amount, customerName, customerEmail, customerPhone
                 currency: "INR",
                 paymentStatus: paymentLink.status,
                 paymentUrl: paymentLink.short_url,
+                paymentMethod: paymentMethod.toUpperCase(),
                 receipt: receiptId,
                 createdAt: new Date()
             },
@@ -168,7 +185,7 @@ const checkOrderStatus = (orderId) => __awaiter(void 0, void 0, void 0, function
     }
 });
 exports.checkOrderStatus = checkOrderStatus;
-const listPayments = (userId, page = 1, limit = 10) => __awaiter(void 0, void 0, void 0, function* () {
+const listPayments = (userId_1, ...args_1) => __awaiter(void 0, [userId_1, ...args_1], void 0, function* (userId, page = 1, limit = 10) {
     // Validate pagination parameters
     const validPage = Math.max(1, page);
     const validLimit = Math.min(100, Math.max(1, limit)); // Max 100 items per page
@@ -177,7 +194,7 @@ const listPayments = (userId, page = 1, limit = 10) => __awaiter(void 0, void 0,
     const totalCount = yield payment_schema_1.default.countDocuments({ user: userId });
     // Get paginated payments with only specific fields
     const payments = yield payment_schema_1.default.find({ user: userId })
-        .select('amount customerName customerEmail customerPhone paymentStatus createdAt applicationId orderId paymentId bankName')
+        .select('amount customerName customerEmail customerPhone paymentStatus paymentMethod createdAt applicationId orderId paymentId bankName')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(validLimit);
@@ -202,7 +219,7 @@ const listPayments = (userId, page = 1, limit = 10) => __awaiter(void 0, void 0,
 });
 exports.listPayments = listPayments;
 // Get payments by application ID (for admin panel)
-const getPaymentsByApplication = (applicationId, page = 1, limit = 10) => __awaiter(void 0, void 0, void 0, function* () {
+const getPaymentsByApplication = (applicationId_1, ...args_1) => __awaiter(void 0, [applicationId_1, ...args_1], void 0, function* (applicationId, page = 1, limit = 10) {
     // Validate pagination parameters
     const validPage = Math.max(1, page);
     const validLimit = Math.min(100, Math.max(1, limit));
@@ -211,7 +228,7 @@ const getPaymentsByApplication = (applicationId, page = 1, limit = 10) => __awai
     const totalCount = yield payment_schema_1.default.countDocuments({ applicationId });
     // Get paginated payments with application details
     const payments = yield payment_schema_1.default.find({ applicationId })
-        .select('amount customerName customerEmail customerPhone paymentStatus paymentDate createdAt orderId paymentId bankName')
+        .select('amount customerName customerEmail customerPhone paymentStatus paymentMethod paymentDate createdAt orderId paymentId bankName')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(validLimit);

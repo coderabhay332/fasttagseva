@@ -20,6 +20,11 @@ const paymentSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     applicationId: { type: mongoose.Schema.Types.ObjectId, ref: "Application" },
     bankName: { type: String },
+    paymentMethod: { 
+      type: String, 
+      enum: ["CARD", "NET_BANKING", "UPI", "WALLET", "EMI", "OTHER"],
+      default: "CARD" 
+    },
     // Link to application
     paymentDate: { type: Date }, // When the payment was completed
   },

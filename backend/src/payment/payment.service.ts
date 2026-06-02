@@ -15,7 +15,8 @@ export const createPaymentService = async (
   customerPhone: string,
   userId: string,
   applicationId: string,
-  bankName: string
+  bankName: string,
+  paymentMethod: string = "CARD"
 ) => {
   // Validate environment variables
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -67,7 +68,8 @@ export const createPaymentService = async (
       description: `Payment for ${customerName}`
     });
     
-    const paymentLink = await razorpay.paymentLink.create({
+    // Configure payment methods based on the selected method
+    const paymentLinkOptions: any = {
       amount: amountInPaise,
       currency: "INR",
       accept_partial: false,
@@ -86,11 +88,27 @@ export const createPaymentService = async (
         userId: userId.toString(),
         customerName,
         customerEmail,
-        customerPhone
+        customerPhone,
+        paymentMethod
       },
       callback_url: `${process.env.FRONTEND_BASE_URL || process.env.BASE_URL}/upload-documents/${applicationId}`,
       callback_method: 'get'
-    });
+    };
+
+    // Add UPI configuration to make it prominent
+    if (paymentMethod === "UPI") {
+      paymentLinkOptions.options = {
+        checkout: {
+          method: {
+            upi: {
+              flow: "intent" // This makes UPI the primary payment method
+            }
+          }
+        }
+      };
+    }
+
+    const paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
 
     // Save in DB
     const paymentDoc = await Payment.create({
@@ -105,7 +123,8 @@ export const createPaymentService = async (
       response: paymentLink,
       user: userId,
       applicationId: applicationId,
-      bankName: bankName
+      bankName: bankName,
+      paymentMethod: paymentMethod.toUpperCase()
     });
 
     await userSchema.findByIdAndUpdate(
@@ -123,6 +142,7 @@ export const createPaymentService = async (
         currency: "INR",
         paymentStatus: paymentLink.status,
         paymentUrl: paymentLink.short_url,
+        paymentMethod: paymentMethod.toUpperCase(),
         receipt: receiptId,
         createdAt: new Date()
       },
@@ -186,7 +206,7 @@ export const listPayments = async (userId: string, page: number = 1, limit: numb
   
   // Get paginated payments with only specific fields
   const payments = await Payment.find({ user: userId })
-    .select('amount customerName customerEmail customerPhone paymentStatus createdAt applicationId orderId paymentId bankName')
+    .select('amount customerName customerEmail customerPhone paymentStatus paymentMethod createdAt applicationId orderId paymentId bankName')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(validLimit);
@@ -224,7 +244,7 @@ export const getPaymentsByApplication = async (applicationId: string, page: numb
   
   // Get paginated payments with application details
   const payments = await Payment.find({ applicationId })
-    .select('amount customerName customerEmail customerPhone paymentStatus paymentDate createdAt orderId paymentId bankName')
+    .select('amount customerName customerEmail customerPhone paymentStatus paymentMethod paymentDate createdAt orderId paymentId bankName')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(validLimit);

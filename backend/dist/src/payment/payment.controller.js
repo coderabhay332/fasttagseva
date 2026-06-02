@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -62,16 +72,23 @@ exports.testRazorpayConfig = (0, express_async_handler_2.default)((req, res) => 
     });
 }));
 exports.createPayment = (0, express_async_handler_2.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { amount, customerName, customerEmail, customerPhone, applicationId, bankName } = req.body;
+    const { amount, customerName, customerEmail, customerPhone, applicationId, bankName, paymentMethod } = req.body;
     if (!amount || !customerName || !customerEmail || !customerPhone || !applicationId || !bankName) {
         res.status(400).json((0, response_helper_1.createResponse)(null, "Missing required fields"));
+        return;
+    }
+    // Validate payment method if provided
+    const validPaymentMethods = ["CARD", "NET_BANKING", "UPI", "WALLET", "EMI", "OTHER"];
+    const selectedPaymentMethod = paymentMethod || "CARD";
+    if (!validPaymentMethods.includes(selectedPaymentMethod.toUpperCase())) {
+        res.status(400).json((0, response_helper_1.createResponse)(null, "Invalid payment method. Supported methods: CARD, NET_BANKING, UPI, WALLET, EMI, OTHER"));
         return;
     }
     if (!req.user || !req.user._id) {
         res.status(401).json((0, response_helper_1.createResponse)(null, "Unauthorized"));
         return;
     }
-    const result = yield paymentService.createPaymentService(amount, customerName, customerEmail, customerPhone, req.user._id, applicationId, bankName);
+    const result = yield paymentService.createPaymentService(amount, customerName, customerEmail, customerPhone, req.user._id, applicationId, bankName, selectedPaymentMethod);
     if (!result.success) {
         res.status(400).json({
             success: false,
@@ -97,6 +114,7 @@ exports.createPayment = (0, express_async_handler_2.default)((req, res) => __awa
             currency: result.payment.currency,
             paymentStatus: result.payment.paymentStatus,
             paymentUrl: result.payment.paymentUrl, // ✅ Direct link for frontend
+            paymentMethod: result.payment.paymentMethod,
             receipt: result.payment.receipt,
             createdAt: result.payment.createdAt
         },
