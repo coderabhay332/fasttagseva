@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Permissive settings for existing code build */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": false,
+
+    /* Paths mapping */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "components/landing/ui/chart.tsx",
+    "components/landing/ui/command.tsx",
+    "components/landing/ui/container-scroll-animation.tsx",
+    "components/landing/ui/drawer.tsx",
+    "components/landing/ui/form.tsx",
+    "components/landing/ui/navigation.tsx",
+    "components/landing/ui/resizable.tsx",
+    "components/landing/ui/sonner.tsx"
+  ]
+}

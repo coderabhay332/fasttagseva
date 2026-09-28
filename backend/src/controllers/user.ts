@@ -322,8 +322,8 @@ export const uploadImage = async (c: Context<{ Bindings: Env }>) => {
       message: 'Image uploaded successfully'
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
-    return c.json({ success: false, message: 'Failed to upload image' }, 500);
+    return c.json({ success: false, message: error?.message || 'Failed to upload image' }, 500);
   }
 };

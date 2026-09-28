@@ -194,9 +194,9 @@ async function uploadApplicationImage(
       message: `${imageType} image uploaded successfully`
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error(`${imageType} upload error:`, error);
-    return c.json({ success: false, message: `Failed to upload ${imageType} image` }, 500);
+    return c.json({ success: false, message: error?.message || `Failed to upload ${imageType} image` }, 500);
   }
 }
 

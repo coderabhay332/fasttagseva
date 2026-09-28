@@ -20,7 +20,7 @@ api.interceptors.request.use((config) => {
 		try {
 			const { accessToken } = JSON.parse(stored) as { accessToken?: string };
 			if (accessToken) {
-				config.headers = config.headers || {};
+				config.headers = (config.headers || {}) as any;
 				config.headers.Authorization = `Bearer ${accessToken}`;
 			}
 		} catch {}

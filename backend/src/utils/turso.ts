@@ -13,6 +13,16 @@ export function createTursoClient(env: Env) {
 export async function initDatabase(env: Env) {
   const db = createTursoClient(env);
   
+  const addColumnSafe = async (table: string, column: string, type: string) => {
+    try {
+      await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    } catch (e: any) {
+      if (!e.message.includes('duplicate column') && !e.message.includes('already exists')) {
+        console.warn(`Could not add column ${column} to ${table}:`, e.message);
+      }
+    }
+  };
+  
   // Users table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
@@ -108,5 +118,19 @@ export async function initDatabase(env: Env) {
     )
   `);
   
+  // Run migrations to ensure newer columns exist in older database tables
+  await addColumnSafe('users', 'profile_image', 'TEXT');
+  await addColumnSafe('profiles', 'phone', 'TEXT');
+  await addColumnSafe('profiles', 'city', 'TEXT');
+  await addColumnSafe('profiles', 'state', 'TEXT');
+  await addColumnSafe('profiles', 'pincode', 'TEXT');
+  await addColumnSafe('profiles', 'profile_image', 'TEXT');
+  await addColumnSafe('applications', 'pan_image', 'TEXT');
+  await addColumnSafe('applications', 'rc_image', 'TEXT');
+  await addColumnSafe('applications', 'vehicle_front_image', 'TEXT');
+  await addColumnSafe('applications', 'vehicle_side_image', 'TEXT');
+  await addColumnSafe('applications', 'payment_status', 'TEXT');
+  await addColumnSafe('applications', 'amount', 'REAL');
+
   return db;
 }

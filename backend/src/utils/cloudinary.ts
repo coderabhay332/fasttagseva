@@ -17,10 +17,18 @@ export async function uploadToCloudinary(
   folder: string,
   userId: string
 ): Promise<UploadResult> {
+  if (!env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
+    throw new Error('Cloudinary configuration is missing on your Cloudflare Worker. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET secrets using wrangler.');
+  }
+
+  const cloudName = env.CLOUDINARY_CLOUD_NAME.trim().replace(/^["']|["']$/g, '');
+  const apiKey = env.CLOUDINARY_API_KEY.trim().replace(/^["']|["']$/g, '');
+  const apiSecret = env.CLOUDINARY_API_SECRET.trim().replace(/^["']|["']$/g, '');
+
   const timestamp = Math.round(new Date().getTime() / 1000);
   
   // Generate signature
-  const signatureString = `folder=${folder}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
+  const signatureString = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
   const signature = await generateSHA1Signature(signatureString);
   
   // Convert ArrayBuffer to Base64
@@ -30,13 +38,13 @@ export async function uploadToCloudinary(
   // Upload to Cloudinary
   const formData = new FormData();
   formData.append('file', dataURI);
-  formData.append('api_key', env.CLOUDINARY_API_KEY);
+  formData.append('api_key', apiKey);
   formData.append('timestamp', timestamp.toString());
   formData.append('signature', signature);
   formData.append('folder', folder);
   
   const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
     {
       method: 'POST',
       body: formData,
@@ -86,18 +94,25 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  */
 export async function deleteFromCloudinary(env: Env, publicId: string): Promise<boolean> {
   try {
+    if (!env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
+      return false;
+    }
+    const cloudName = env.CLOUDINARY_CLOUD_NAME.trim().replace(/^["']|["']$/g, '');
+    const apiKey = env.CLOUDINARY_API_KEY.trim().replace(/^["']|["']$/g, '');
+    const apiSecret = env.CLOUDINARY_API_SECRET.trim().replace(/^["']|["']$/g, '');
+
     const timestamp = Math.round(new Date().getTime() / 1000);
-    const signatureString = `public_id=${publicId}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
+    const signatureString = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
     const signature = await generateSHA1Signature(signatureString);
     
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/image/destroy`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           public_id: publicId,
-          api_key: env.CLOUDINARY_API_KEY,
+          api_key: apiKey,
           timestamp,
           signature,
         }),
