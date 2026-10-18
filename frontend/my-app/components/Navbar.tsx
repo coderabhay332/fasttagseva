@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { CarFront } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../stores';
 import Button from './ui/Button';
 import { logoutThunk } from '../stores/slices/authSlice';
@@ -27,18 +28,20 @@ export default function Navbar() {
 	};
 
 	return (
-		<nav className="sticky top-0 z-50 glass border-b border-gray-200/50">
+		<nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0B1F4B]/95 backdrop-blur-md">
 			<div className="mx-auto max-w-6xl px-6">
 				<div className="flex h-16 items-center justify-between">
 					{/* Logo */}
-					<Link 
-						to="/" 
-						className="flex items-center space-x-2 text-2xl font-bold gradient-text hover:scale-105 transition-elegant"
+					<Link
+						to="/"
+						className="flex items-center gap-2 transition-transform hover:-translate-y-0.5"
 					>
-						<div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-							<span className="text-white text-sm font-bold">F</span>
+						<div className="grid h-9 w-9 place-items-center rounded-xl border-2 border-slate-900 bg-yellow-400 shadow-[2px_2px_0_0_#0F172A]">
+							<CarFront className="h-5 w-5 text-slate-900" strokeWidth={2.5} />
 						</div>
-						<span>Fastag</span>
+						<span className="font-display text-2xl font-extrabold leading-none text-white">
+							Tag<span className="text-yellow-400">Seva</span>
+						</span>
 					</Link>
 
 					{/* Navigation Links */}
@@ -48,10 +51,10 @@ export default function Navbar() {
 								key={path}
 								to={path}
 								className={`
-									px-4 py-2 rounded-lg text-sm font-medium transition-elegant
-									${isActive(path) 
-										? 'bg-gray-900 text-white shadow-elegant' 
-										: 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+									px-4 py-2 rounded-lg text-sm font-semibold transition-colors
+									${isActive(path)
+										? 'bg-yellow-400 text-slate-900'
+										: 'text-white/80 hover:text-yellow-300'
 									}
 								`}
 							>
@@ -69,7 +72,7 @@ export default function Navbar() {
 						) : (
 							<Link
 								to="/login"
-								className="px-4 py-2 rounded-lg text-sm font-medium transition-elegant text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+								className="rounded-xl border-2 border-slate-900 bg-yellow-400 px-4 py-2 text-sm font-bold text-slate-900 shadow-[3px_3px_0_0_#0F172A] transition-transform hover:-translate-y-0.5"
 							>
 								Login
 							</Link>

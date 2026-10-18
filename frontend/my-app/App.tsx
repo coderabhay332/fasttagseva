@@ -7,6 +7,7 @@ import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import CreateApplication from './pages/CreateApplication'
+import Onboarding from './pages/Onboarding'
 import Payment from './pages/Payment'
 import DocumentUpload from './pages/DocumentUpload'
 import MyApplication from './pages/MyApplication'
@@ -28,7 +29,7 @@ function AppContent() {
   const isLandingPage = location.pathname === '/landing';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+    <div className="min-h-screen bg-amber-50">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute inset-0" style={{
@@ -47,8 +48,11 @@ function AppContent() {
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/return-policy" element={<ReturnPolicy />} />
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<CreateApplication />} />
-              <Route path="/create" element={<CreateApplication />} />
+              <Route path="/" element={<Onboarding />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/onboarding/:id" element={<Onboarding />} />
+              <Route path="/create" element={<Onboarding />} />
+              <Route path="/create-legacy" element={<CreateApplication />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/payment/:id" element={<Payment />} />
               <Route path="/upload-documents/:id" element={<DocumentUpload />} />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CarFront } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../stores';
 import { signupThunk } from '../stores/slices/authSlice';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
@@ -104,26 +105,33 @@ export default function Signup() {
 
 		const res = await dispatch(signupThunk(formData));
 		if ((res as any).type?.endsWith('fulfilled')) {
-			// Navigate after a short delay to show success message
+			const payload: any = (res as any).payload || {};
+			const gotToken = payload.accessToken || payload.token || payload?.tokens?.accessToken;
+			// Backend may not issue a token on signup. If it did, go to the app;
+			// otherwise send the user to login to authenticate.
 			setTimeout(() => {
-				navigate(from, { replace: true });
-			}, 2000);
+				if (gotToken) {
+					navigate(from, { replace: true });
+				} else {
+					navigate('/login', { replace: true, state: { from } });
+				}
+			}, 1500);
 		}
 	};
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-8">
+		<div className="min-h-screen flex items-center justify-center bg-amber-50 px-4 py-8">
 			<div className="w-full max-w-md">
 				{/* Welcome Header */}
 				<div className="text-center mb-8">
-					<div className="w-16 h-16 bg-gray-900 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-elegant-lg">
-						<span className="text-white text-2xl font-bold">F</span>
+					<div className="w-16 h-16 bg-yellow-400 border-2 border-slate-900 rounded-2xl mx-auto mb-4 flex items-center justify-center brand-shadow-md">
+						<CarFront className="h-8 w-8 text-slate-900" strokeWidth={2.5} />
 					</div>
-					<h1 className="text-3xl font-bold gradient-text mb-2">Create Account</h1>
-					<p className="text-gray-600">Join Fastag and get started with your applications</p>
+					<h1 className="font-display text-3xl font-extrabold text-slate-900 mb-2">Create Account</h1>
+					<p className="text-slate-600">Join <span className="font-bold">Tag<span className="text-blue-600">Seva</span></span> and get started with your applications</p>
 				</div>
 
-				<Card className="shadow-elegant-lg">
+				<Card>
 					<CardHeader className="text-center">
 						Sign Up to Continue
 					</CardHeader>
@@ -274,7 +282,7 @@ export default function Signup() {
 
 				<div className="text-center mt-6">
 					<p className="text-gray-500 text-sm">
-						Already have an account? <a href="/login" className="text-gray-900 font-medium hover:underline">Sign in</a>
+						Already have an account? <a href="/login" className="text-blue-600 font-bold hover:underline">Sign in</a>
 					</p>
 				</div>
 

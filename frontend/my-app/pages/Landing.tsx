@@ -1,37 +1,40 @@
 import HeroHeader from "../components/landing/HeroHeader";
 import FeaturesSection from "../components/landing/FeaturesSection";
 import HowItWorksSection from "../components/landing/HowItWorksSection";
-import UserJourneySection from "../components/landing/UserJourneySection";
+import PricingSection from "../components/landing/PricingSection";
+import CtaSection from "../components/landing/CtaSection";
 import Footer from "../components/landing/Footer";
 
 export default function Landing() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Hero Header - Full-bleed with sticky navigation */}
+    <main className="min-h-screen bg-amber-50">
       <HeroHeader />
-      
-      {/* Main Content Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Features Section */}
-        <section id="features" className="py-20 lg:py-24">
+
+      <section id="pricing" className="scroll-mt-20 px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <PricingSection />
+        </div>
+      </section>
+
+      <section id="features" className="scroll-mt-20 px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
           <FeaturesSection />
-        </section>
-        
-        {/* How It Works Section */}
-        <section id="how-it-works" className="py-20 lg:py-24">
+        </div>
+      </section>
+
+      <section id="how-it-works" className="scroll-mt-16 bg-slate-900 px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
           <HowItWorksSection />
-        </section>
-        
-        {/* User Journey Section */}
-        <section id="business" className="py-20 lg:py-24">
-          <UserJourneySection />
-        </section>
-      </div>
-      
-      {/* Footer - Full-width */}
+        </div>
+      </section>
+
+      <section className="px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+        <div className="mx-auto max-w-6xl">
+          <CtaSection />
+        </div>
+      </section>
+
       <Footer />
     </main>
   );
 }
-
-

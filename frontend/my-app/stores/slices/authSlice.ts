@@ -47,6 +47,16 @@ export const logoutThunk = createAsyncThunk('auth/logout', async () => {
 	localStorage.removeItem('auth');
 });
 
+// Normalize the backend user object into the shape the UI expects.
+// Backend uses `_id` and includes `password`; the store wants `id` and no secrets.
+const normalizeUser = (raw: any): AuthState['user'] => {
+	if (!raw || typeof raw !== 'object') return null;
+	const { password, _id, id, __v, refreshToken, ...rest } = raw;
+	const userId = id || _id;
+	if (!userId) return null;
+	return { id: String(userId), ...rest } as AuthState['user'];
+};
+
 const authSlice = createSlice({
 	name: 'auth',
 	initialState,
@@ -71,12 +81,15 @@ const authSlice = createSlice({
 			})
 			.addCase(loginThunk.fulfilled, (state, action: PayloadAction<any>) => {
 				state.loading = false;
-				// Backend returns { user, tokens: { accessToken, refreshToken } }
-				const tokens = action.payload?.tokens || {};
-				const accessToken = tokens.accessToken || tokens.token;
-				const user = action.payload?.user || null;
+				// Backend returns { accessToken, refreshToken, user }
+				// (older/alt shape: { tokens: { accessToken } }) — support both.
+				const payload = action.payload || {};
+				const tokens = payload.tokens || payload;
+				const accessToken = tokens.accessToken || tokens.token || null;
+				const user = normalizeUser(payload.user);
 				state.accessToken = accessToken;
 				state.user = user;
+				state.error = accessToken ? null : 'Login failed: no token returned';
 				localStorage.setItem('auth', JSON.stringify({ accessToken, user }));
 			})
 			.addCase(loginThunk.rejected, (state, action: any) => {
@@ -91,10 +104,12 @@ const authSlice = createSlice({
 			.addCase(signupThunk.fulfilled, (state, action: PayloadAction<any>) => {
 				state.loading = false;
 				state.success = 'Registration successful! Welcome to Fastag!';
-				// Backend returns { user, tokens: { accessToken, refreshToken } }
-				const tokens = action.payload?.tokens || {};
-				const accessToken = tokens.accessToken || tokens.token;
-				const user = action.payload?.user || null;
+				// Backend `create` may return just the user (no tokens) or
+				// { accessToken, refreshToken, user }. Support both.
+				const payload = action.payload || {};
+				const tokens = payload.tokens || payload;
+				const accessToken = tokens.accessToken || tokens.token || null;
+				const user = normalizeUser(payload.user ?? payload);
 				state.accessToken = accessToken;
 				state.user = user;
 				localStorage.setItem('auth', JSON.stringify({ accessToken, user }));

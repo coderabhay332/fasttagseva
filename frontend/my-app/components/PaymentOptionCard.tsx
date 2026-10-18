@@ -10,7 +10,7 @@ const bankLogos: Record<string, string> = {
 	'SBI': '🏦',
 	'IDFC': '🏛️',
 	'LivQuick': '⚡',
-	'Bajaj': '🚗'
+	'Axis': '🚗'
 };
 
 export default function PaymentOptionCard({ bank, price, selected, onSelect }: Props) {

@@ -12,7 +12,12 @@ export default {
     "./utils/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        display: ['"Baloo 2"', 'system-ui', 'sans-serif'],
+        heading: ['"Baloo 2"', 'system-ui', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }
