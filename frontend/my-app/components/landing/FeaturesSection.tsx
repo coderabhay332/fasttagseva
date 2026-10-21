@@ -1,262 +1,109 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { Button } from "./ui/button";
-import { 
-  IdCard, 
-  Component, 
-  CardSim, 
-  CreditCard, 
-  LayoutPanelTop, 
-  ChevronUp 
-} from "lucide-react";
+import { motion } from "framer-motion";
+import { FileText, Upload, CreditCard, Truck, MapPinned, Landmark, type LucideIcon } from "lucide-react";
 
 interface Feature {
-  id: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   title: string;
   description: string;
-  details: string[];
+  tint: string;
 }
 
 const features: Feature[] = [
   {
-    id: "auth",
-    icon: IdCard,
-    title: "User Authentication & Management",
-    description: "Secure user registration and profile management system",
-    details: [
-      "Multi-factor authentication with OTP verification",
-      "Comprehensive profile management with document validation",
-      "Role-based access control for users and administrators"
-    ]
+    icon: FileText,
+    title: "Apply in minutes",
+    description: "A simple online form for your vehicle details. No queues, no running around.",
+    tint: "bg-yellow-400",
   },
   {
-    id: "application",
-    icon: Component,
-    title: "Application Creation & Management",
-    description: "Streamlined FastTag application process with tracking",
-    details: [
-      "Step-by-step application wizard with progress tracking",
-      "Real-time application status updates and notifications",
-      "Vehicle details management with multiple vehicle support"
-    ]
+    icon: Upload,
+    title: "Easy document upload",
+    description: "Upload your RC, ID proof and photo straight from your phone.",
+    tint: "bg-sky-300",
   },
   {
-    id: "documents",
-    icon: CardSim,
-    title: "Document Upload & Management",
-    description: "Secure document handling with validation and storage",
-    details: [
-      "Drag-and-drop file upload with format validation",
-      "Automatic document verification and quality checks",
-      "Secure cloud storage with encryption and backup"
-    ]
-  },
-  {
-    id: "payment",
     icon: CreditCard,
-    title: "Payment Processing",
-    description: "Integrated payment gateway supporting multiple methods",
-    details: [
-      "Supports net banking, debit/credit cards & UPI payments",
-      "Automatic fee calculation by vehicle type and bank",
-      "Secure transaction processing with instant confirmation"
-    ]
+    title: "Secure payments",
+    description: "Pay with UPI, debit/credit card or net banking and get instant confirmation.",
+    tint: "bg-emerald-300",
   },
   {
-    id: "admin",
-    icon: LayoutPanelTop,
-    title: "Admin Dashboard",
-    description: "Comprehensive administrative panel for approvals and tracking",
-    details: [
-      "Real-time application monitoring and approval workflows",
-      "Analytics dashboard with reports and insights",
-      "Bulk operations and automated notification system"
-    ]
-  }
+    icon: Truck,
+    title: "Doorstep delivery",
+    description: "Our agent brings your FASTag to you and helps with installation if needed.",
+    tint: "bg-orange-300",
+  },
+  {
+    icon: MapPinned,
+    title: "Live status tracking",
+    description: "Follow your application from submission all the way to delivery.",
+    tint: "bg-pink-300",
+  },
+  {
+    icon: Landmark,
+    title: "Trusted bank partners",
+    description: "Choose your FASTag from SBI, IDFC FIRST, LivQuik or Axis.",
+    tint: "bg-violet-300",
+  },
 ];
 
-interface FeatureCardProps {
-  feature: Feature;
-  isExpanded: boolean;
-  onToggle: () => void;
-}
-
-function FeatureCard({ feature, isExpanded, onToggle }: FeatureCardProps) {
-  const IconComponent = feature.icon;
-
+export function SectionHeading({
+  eyebrow,
+  title,
+  subtitle,
+  dark = false,
+}: {
+  eyebrow: string;
+  title: React.ReactNode;
+  subtitle: string;
+  dark?: boolean;
+}) {
   return (
-    <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border border-purple-200/30 hover:border-purple-300/50 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 cursor-pointer transform hover:scale-105">
-      <Collapsible open={isExpanded} onOpenChange={onToggle}>
-        <CollapsibleTrigger asChild>
-          <div className="w-full text-left">
-            <CardHeader className="pb-4">
-              <div className="flex items-start justify-between">
-                <div className="relative">
-                  <div className="p-3 rounded-lg bg-gradient-to-br from-blue-50 to-purple-50 group-hover:from-blue-100 group-hover:to-purple-100 transition-all duration-300 shadow-sm">
-                    <IconComponent className="h-6 w-6 text-blue-600 group-hover:text-purple-600 transition-colors duration-300" />
-                    <div className="absolute -top-1 -right-1 h-3 w-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
-                  </div>
-                </div>
-                <ChevronUp 
-                  className={`h-4 w-4 text-gray-500 group-hover:text-purple-600 transition-all duration-300 ${
-                    isExpanded ? 'rotate-180' : 'rotate-0'
-                  }`}
-                />
-              </div>
-              <CardTitle className="text-lg font-semibold text-gray-800 group-hover:text-purple-600 transition-colors duration-300">
-                {feature.title}
-              </CardTitle>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {feature.description}
-              </p>
-            </CardHeader>
-          </div>
-        </CollapsibleTrigger>
-        
-        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-          <CardContent className="pt-0 pb-6">
-            <div className="space-y-3">
-              {feature.details.map((detail, index) => (
-                <div key={index} className="flex items-start gap-3">
-                  <div className="h-1.5 w-1.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mt-2 flex-shrink-0" />
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {detail}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+    <div className="mx-auto mb-14 max-w-2xl text-center">
+      <span className="inline-block rounded-md border-2 border-slate-900 bg-yellow-400 px-3 py-1 font-display text-sm font-bold uppercase tracking-wider text-slate-900 shadow-[3px_3px_0_0_#0F172A]">
+        {eyebrow}
+      </span>
+      <h2 className={`mt-5 font-display text-4xl font-extrabold leading-tight sm:text-5xl ${dark ? "text-white" : "text-slate-900"}`}>
+        {title}
+      </h2>
+      <p className={`mt-4 text-lg ${dark ? "text-slate-300" : "text-slate-600"}`}>{subtitle}</p>
+    </div>
   );
 }
 
-function SkeletonCard() {
+export default function FeaturesSection() {
   return (
-    <Card className="border border-border">
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
-          <div className="p-3 rounded-lg bg-muted">
-            <div className="h-6 w-6 bg-muted-foreground/20 rounded" />
-          </div>
-          <div className="h-4 w-4 bg-muted-foreground/20 rounded" />
-        </div>
-        <div className="space-y-3">
-          <div className="h-5 w-3/4 bg-muted-foreground/20 rounded" />
-          <div className="h-4 w-full bg-muted-foreground/10 rounded" />
-          <div className="h-4 w-2/3 bg-muted-foreground/10 rounded" />
-        </div>
-      </CardHeader>
-    </Card>
-  );
-}
+    <div>
+      <SectionHeading
+        eyebrow="Why TagSeva"
+        title={
+          <>
+            Everything for your FASTag, <span className="text-blue-600">in one lane</span>
+          </>
+        }
+        subtitle="From application to installation — we handle the paperwork so you can enjoy the drive."
+      />
 
-interface FeaturesSectionProps {
-  className?: string;
-}
-
-export default function FeaturesSection({ className = "" }: FeaturesSectionProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    // Simulate loading state
-    const loadTimer = setTimeout(() => {
-      if (Math.random() > 0.9) { // 10% chance of error for demo
-        setHasError(true);
-      }
-      setIsLoading(false);
-    }, Math.random() * 300 + 300); // 300-600ms
-
-    return () => clearTimeout(loadTimer);
-  }, []);
-
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    
-    const retryTimer = setTimeout(() => {
-      setIsLoading(false);
-    }, Math.random() * 300 + 300);
-
-    return () => clearTimeout(retryTimer);
-  };
-
-  const toggleCard = (cardId: string) => {
-    setExpandedCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(cardId)) {
-        newSet.delete(cardId);
-      } else {
-        newSet.add(cardId);
-      }
-      return newSet;
-    });
-  };
-
-  if (hasError) {
-    return (
-      <section className={`py-16 px-4 ${className}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <div className="p-8 rounded-lg border border-destructive/20 bg-destructive/5">
-              <p className="text-destructive font-medium mb-4">
-                Failed to load features. Please try again.
-              </p>
-              <Button 
-                onClick={handleRetry}
-                variant="outline"
-                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-              >
-                Retry
-              </Button>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {features.map((f, i) => (
+          <motion.article
+            key={f.title}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.45, delay: i * 0.06 }}
+            className="group rounded-3xl border-2 border-slate-900 bg-white p-7 shadow-[6px_6px_0_0_#0F172A] transition-transform duration-200 hover:-translate-y-1.5"
+          >
+            {/* Road-sign style icon */}
+            <div className="relative mb-6 ml-2 mt-2 grid h-14 w-14 rotate-45 place-items-center rounded-lg border-[3px] border-slate-900 transition-transform duration-500 group-hover:rotate-[405deg]">
+              <div className={`absolute inset-0 rounded-[5px] ${f.tint}`} />
+              <f.icon className="relative h-6 w-6 -rotate-45 text-slate-900" strokeWidth={2.5} />
             </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className={`py-16 px-4 bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 ${className}`}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <p className="text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent tracking-wide uppercase mb-3">
-            ✨ Core Features
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            Everything you need to get <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">FastTag</span>
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Complete end-to-end solution for FastTag applications with secure processing and real-time tracking
-          </p>
-        </div>
-
-        {/* Features Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <SkeletonCard key={index} />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature) => (
-              <FeatureCard
-                key={feature.id}
-                feature={feature}
-                isExpanded={expandedCards.has(feature.id)}
-                onToggle={() => toggleCard(feature.id)}
-              />
-            ))}
-          </div>
-        )}
+            <h3 className="font-display text-2xl font-bold text-slate-900">{f.title}</h3>
+            <p className="mt-2 leading-relaxed text-slate-600">{f.description}</p>
+          </motion.article>
+        ))}
       </div>
-    </section>
+    </div>
   );
 }

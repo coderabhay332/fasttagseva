@@ -43,9 +43,122 @@
   }
   
   .gradient-text {
-    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    background: linear-gradient(135deg, #0B1F4B 0%, #1D4ED8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  /* ---------- Brand design tokens (shared with the landing page) ----------
+     Navy #0B1F4B, Blue #1D4ED8, Yellow #FACC15, Ink border #0F172A.
+     Bold 2px ink borders + hard offset shadows + display font. */
+  .brand-shadow {
+    box-shadow: 3px 3px 0 0 #0F172A;
+  }
+  .brand-shadow-md {
+    box-shadow: 4px 4px 0 0 #0F172A;
+  }
+  .brand-shadow-lg {
+    box-shadow: 6px 6px 0 0 #0F172A;
+  }
+
+  /* Bordered white surface with a hard offset shadow (matches landing cards). */
+  .brand-card {
+    border-radius: 1.5rem; /* rounded-3xl */
+    border: 2px solid #0F172A;
+    background: #ffffff;
+    box-shadow: 6px 6px 0 0 #0F172A;
+  }
+
+  /* Primary brand button: yellow fill, ink border, hard shadow, lifts on hover. */
+  .brand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    border: 2px solid #0F172A;
+    background: #FACC15;
+    color: #0F172A;
+    font-weight: 700;
+    box-shadow: 3px 3px 0 0 #0F172A;
+    transition: transform 0.15s ease;
+  }
+  .brand-btn:hover {
+    transform: translateY(-2px);
+  }
+  .brand-btn:active {
+    transform: translateY(0);
+  }
+
+  /* App surface background to match the landing's warm amber canvas. */
+  .brand-surface {
+    background-color: #FFFBEB; /* amber-50 */
+  }
+
+  /* ---------- Landing page: highway theme ---------- */
+  .road-dashes {
+    background-image: repeating-linear-gradient(90deg, #facc15 0 36px, transparent 36px 72px);
+  }
+
+  .road-dashes-vertical {
+    background-image: repeating-linear-gradient(180deg, #facc15 0 18px, transparent 18px 36px);
+  }
+
+  /* Vehicles drive left → right across the full width of their container */
+  .drive {
+    left: -12rem;
+    animation-name: drive;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .wheel-spin {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: wheel-spin 0.5s linear infinite;
+  }
+
+  .toll-blink {
+    animation: toll-blink 1.2s ease-in-out infinite;
+  }
+
+  .cloud {
+    animation: cloud-drift 30s ease-in-out infinite alternate;
+  }
+
+  .float-slow {
+    animation: float-slow 4s ease-in-out infinite;
+  }
+}
+
+@keyframes drive {
+  from { left: -12rem; }
+  to { left: 100%; }
+}
+
+@keyframes wheel-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes toll-blink {
+  0%, 100% { opacity: 0.3; box-shadow: none; }
+  50% { opacity: 1; box-shadow: 0 0 12px 3px rgba(52, 211, 153, 0.8); }
+}
+
+@keyframes cloud-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(80px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drive, .wheel-spin, .toll-blink, .cloud, .float-slow {
+    animation: none;
+  }
+  .drive { display: none; }
 }

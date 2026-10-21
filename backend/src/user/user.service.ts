@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { type IUser } from "./user.dto";
 import userSchema from "./user.schema";
+import { Profile } from "../profile/profile.schema";
 import bcrypt from "bcrypt";
 import { createUserTokens } from "../common/services/passport-jwt.services";
 import jwt from "jsonwebtoken";
@@ -19,6 +20,21 @@ export const generateRefreshToken = (id: string, role: string): string => {
 
 export const createUser = async (data: IUser) => {
   const result = await userSchema.create({ ...data, active: true });
+
+  // Persist the phone into the user's Profile so it is not lost after signup.
+  // KYC fields (pancard, dateOfBirth) are filled in later from the Profile page.
+  if (data.phone) {
+    try {
+      await Profile.findOneAndUpdate(
+        { userId: result._id },
+        { userId: result._id, phone: data.phone },
+        { new: true, upsert: true }
+      );
+    } catch (err) {
+      console.error("Failed to create profile for new user:", err);
+    }
+  }
+
   return result.toObject();
 };
 

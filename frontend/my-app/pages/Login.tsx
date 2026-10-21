@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CarFront } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../stores';
 import { loginThunk } from '../stores/slices/authSlice';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
@@ -28,18 +29,18 @@ export default function Login() {
 	};
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
+		<div className="min-h-screen flex items-center justify-center bg-amber-50 px-4">
 			<div className="w-full max-w-md">
 				{/* Welcome Header */}
 				<div className="text-center mb-8">
-					<div className="w-16 h-16 bg-gray-900 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-elegant-lg">
-						<span className="text-white text-2xl font-bold">F</span>
+					<div className="w-16 h-16 bg-yellow-400 border-2 border-slate-900 rounded-2xl mx-auto mb-4 flex items-center justify-center brand-shadow-md">
+						<CarFront className="h-8 w-8 text-slate-900" strokeWidth={2.5} />
 					</div>
-					<h1 className="text-3xl font-bold gradient-text mb-2">Welcome Back</h1>
-					<p className="text-gray-600">Sign in to your Fastag account</p>
+					<h1 className="font-display text-3xl font-extrabold text-slate-900 mb-2">Welcome Back</h1>
+					<p className="text-slate-600">Sign in to your <span className="font-bold">Tag<span className="text-blue-600">Seva</span></span> account</p>
 				</div>
 
-				<Card className="shadow-elegant-lg">
+				<Card>
 					<CardHeader className="text-center">
 						Login to Continue
 					</CardHeader>
@@ -51,7 +52,6 @@ export default function Login() {
 								type="email" 
 								value={email} 
 								onChange={e => setEmail(e.target.value)}
-								error={auth.error || 'Please check your credentials'}
 								icon={
 									<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
@@ -97,7 +97,7 @@ export default function Login() {
 
 				<div className="text-center mt-6">
 					<p className="text-gray-500 text-sm">
-						Don't have an account? <a href="/signup" className="text-gray-900 font-medium hover:underline">Sign up</a>
+						Don't have an account? <a href="/signup" className="text-blue-600 font-bold hover:underline">Sign up</a>
 					</p>
 				</div>
 			</div>

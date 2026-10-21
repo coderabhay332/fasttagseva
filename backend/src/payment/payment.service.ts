@@ -91,7 +91,7 @@ export const createPaymentService = async (
         customerPhone,
         paymentMethod
       },
-      callback_url: `${process.env.FRONTEND_BASE_URL || process.env.BASE_URL}/upload-documents/${applicationId}`,
+      callback_url: `${process.env.FRONTEND_BASE_URL || process.env.BASE_URL}/onboarding/${applicationId}`,
       callback_method: 'get'
     };
 

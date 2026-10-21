@@ -11,7 +11,19 @@ const BANK_PRICING: Record<string, number> = {
 	SBI: 400,
 	IDFC: 500,
 	LivQuick: 400,
-	Bajaj: 500,
+	Axis: 500,
+};
+
+// Read the bank the user picked on the landing page (if any) and only honour
+// it when it maps to a real pricing option; otherwise fall back to SBI.
+const getInitialBank = (): string => {
+	try {
+		const stored = localStorage.getItem('selectedBank');
+		if (stored && Object.prototype.hasOwnProperty.call(BANK_PRICING, stored)) {
+			return stored;
+		}
+	} catch {}
+	return 'SBI';
 };
 
 export default function Payment() {
@@ -21,7 +33,7 @@ export default function Payment() {
 	const { user } = useAppSelector(s => s.auth);
 	const navigate = useNavigate();
 
-	const [bank, setBank] = useState<string>('SBI');
+	const [bank, setBank] = useState<string>(getInitialBank);
 	const [profilePhone, setProfilePhone] = useState<string>('');
 	const price = useMemo(() => BANK_PRICING[bank], [bank]);
 
@@ -65,6 +77,7 @@ export default function Payment() {
 		);
 		
 		if ((res as any).type?.endsWith('fulfilled')) {
+			try { localStorage.removeItem('selectedBank'); } catch {}
 			const paymentUrl = (res as any).payload?.data?.paymentUrl;
 			if (paymentUrl) {
 				window.location.href = paymentUrl;

@@ -9,14 +9,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	loading?: boolean;
 }
 
-const base = 'inline-flex items-center justify-center rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-elegant';
+const base = 'inline-flex items-center justify-center gap-2 rounded-xl font-bold font-display border-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-0';
 
 const variants: Record<Variant, string> = {
-	primary: 'bg-gray-900 text-white hover:bg-gray-800 focus:ring-gray-500 shadow-lg hover:shadow-xl',
-	secondary: 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 focus:ring-gray-400 hover:border-gray-400',
-	danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-lg hover:shadow-xl',
-	ghost: 'bg-transparent hover:bg-gray-100 text-gray-900 border border-transparent',
-	outline: 'bg-transparent border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white focus:ring-gray-500'
+	primary: 'bg-yellow-400 text-slate-900 border-slate-900 brand-shadow hover:brand-shadow-md',
+	secondary: 'bg-white text-slate-900 border-slate-900 brand-shadow hover:brand-shadow-md',
+	danger: 'bg-red-500 text-white border-slate-900 brand-shadow hover:brand-shadow-md',
+	ghost: 'bg-transparent text-slate-900 border-transparent shadow-none hover:bg-slate-900/5 hover:translate-y-0',
+	outline: 'bg-transparent border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white',
 };
 
 const sizes: Record<Size, string> = {

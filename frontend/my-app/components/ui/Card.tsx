@@ -9,8 +9,8 @@ interface CardProps {
 export default function Card({ children, className = '', hover = false }: PropsWithChildren<CardProps>) {
 	return (
 		<div className={`
-			rounded-2xl border border-gray-200 bg-white shadow-elegant 
-			${hover ? 'transition-elegant hover-lift hover:shadow-elegant-lg' : ''}
+			rounded-3xl border-2 border-slate-900 bg-white brand-shadow-lg
+			${hover ? 'transition-transform duration-200 hover:-translate-y-1.5' : ''}
 			${className}
 		`}>
 			{children}
@@ -20,8 +20,8 @@ export default function Card({ children, className = '', hover = false }: PropsW
 
 export function CardHeader({ children, className = '' }: PropsWithChildren<{ className?: string }>) {
 	return (
-		<div className={`border-b border-gray-100 px-8 py-6 ${className}`}>
-			<h2 className="text-2xl font-bold text-gray-900 gradient-text">{children}</h2>
+		<div className={`border-b-2 border-slate-900 px-8 py-6 ${className}`}>
+			<h2 className="font-display text-2xl font-extrabold text-slate-900">{children}</h2>
 		</div>
 	);
 }
@@ -32,7 +32,7 @@ export function CardBody({ children, className = '' }: PropsWithChildren<{ class
 
 export function CardFooter({ children, className = '' }: PropsWithChildren<{ className?: string }>) {
 	return (
-		<div className={`border-t border-gray-100 px-8 py-6 bg-gray-50 rounded-b-2xl ${className}`}>
+		<div className={`border-t-2 border-slate-900 px-8 py-6 bg-amber-50 rounded-b-3xl ${className}`}>
 			{children}
 		</div>
 	);
