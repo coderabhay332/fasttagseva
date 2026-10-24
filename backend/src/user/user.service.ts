@@ -46,7 +46,6 @@ export const updateUser = async (id: string, data: IUser) => {
 };
 
 export const me = async (user: IUser) => {
-  console.log("user", user._id);
   if (!user || !user._id) {
     throw new Error('User not authenticated');
   }
@@ -118,22 +117,25 @@ export const updateUserToken = async (user: IUser, refreshToken: string) => {
 export const refreshToken = async (user: IUser, refreshToken: string) => {
   if (!refreshToken) throw new Error("No refresh token provided");
 
+  // Identify the user by the presented refresh token rather than trusting
+  // req.user (the access token may be missing or expired during refresh).
   const userData = await userSchema.findOne({ refreshToken });
   if (!userData) throw new Error("Invalid refresh token");
-  console.log("user", userData);
+
   const tokens = createUserTokens(userData as IUser);
   if (!tokens) throw new Error("Failed to create tokens");
   const newRefreshToken = tokens.refreshToken;
 
-  const data = await userSchema.findByIdAndUpdate(user._id, { refreshToken: newRefreshToken });
-  console.log("data", data);
+  // Rotate the refresh token on the token's actual owner.
+  await userSchema.findByIdAndUpdate(userData._id, { refreshToken: newRefreshToken });
+
   return {
     accessToken: tokens.accessToken,
     refreshToken: newRefreshToken,
     user: {
-      _id: user._id,
-      email: user.email,
-      name: user.name,
+      _id: userData._id,
+      email: userData.email,
+      name: userData.name,
     },
   };
 };

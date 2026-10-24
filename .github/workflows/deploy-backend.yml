@@ -1,0 +1,82 @@
+name: Deploy backend to Elastic Beanstalk
+
+# Deploy only when backend code changes land on master.
+# The build/typecheck job is a hard gate: if it fails, nothing is deployed.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  # Allow manual runs from the Actions tab.
+  workflow_dispatch:
+
+concurrency:
+  # Never run two backend deploys at once; cancel older in-flight runs.
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  EB_APPLICATION: fasttagseva-backend
+  EB_ENVIRONMENT: fasttag-backend-prod
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # Install with dev dependencies so tsc is available for the build gate.
+      - name: Install dependencies
+        run: npm ci
+
+      # ---- Fail-fast quality gates: a broken backend never deploys ----
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build (compile TypeScript to dist/)
+        run: npm run build
+
+      - name: Verify build output exists
+        run: test -f dist/index.js
+
+      # ---- Package the deployment bundle ----
+      # Ship compiled dist/ + source + package files + Procfile + .ebextensions.
+      # Exclude node_modules (EB runs its own production install) and secrets.
+      - name: Create deployment bundle
+        run: |
+          zip -r ../deploy.zip . \
+            -x "node_modules/*" \
+            -x ".git/*" \
+            -x "*.env" \
+            -x ".env*" \
+            -x ".elasticbeanstalk/*" \
+            -x "*.log" \
+            -x "*.tsbuildinfo" \
+            -x ".vercel/*" \
+            -x ".aws-tmp/*"
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          region: ${{ env.AWS_REGION }}
+          application_name: ${{ env.EB_APPLICATION }}
+          environment_name: ${{ env.EB_ENVIRONMENT }}
+          version_label: "gh-${{ github.run_number }}-${{ github.sha }}"
+          deployment_package: deploy.zip
+          wait_for_environment_recovery: 180

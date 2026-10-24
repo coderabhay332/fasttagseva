@@ -5,8 +5,8 @@ const mongoose_1 = require("mongoose");
 const profileSchema = new mongoose_1.Schema({
     userId: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
     phone: { type: String, required: true },
-    pancard: { type: String, required: true },
-    pancardNumber: { type: String, required: true },
-    dateOfBirth: { type: String, required: true },
+    pancard: { type: String },
+    pancardNumber: { type: String },
+    dateOfBirth: { type: String },
 });
 exports.Profile = (0, mongoose_1.model)("Profile", profileSchema);

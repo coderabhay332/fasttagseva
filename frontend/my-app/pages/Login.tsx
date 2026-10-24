@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CarFront } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../stores';
 import { loginThunk } from '../stores/slices/authSlice';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import Card, { CardBody, CardHeader } from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -12,9 +12,8 @@ export default function Login() {
 	const auth = useAppSelector(s => s.auth);
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
-	const navigate = useNavigate();
 	const location = useLocation();
-	const from = (location.state as any)?.from?.pathname || '/';
+	const from = (location.state as any)?.from?.pathname || '/onboarding';
 
 	if (auth.accessToken) {
 		return <Navigate to={from} replace />;
@@ -22,10 +21,15 @@ export default function Login() {
 
 	const onSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		const res = await dispatch(loginThunk({ email, password }));
-		if ((res as any).type?.endsWith('fulfilled')) {
-			navigate(from, { replace: true });
-		}
+		// Dispatch login. On success the auth slice sets `accessToken` in the store
+		// synchronously, which re-renders this component; the `auth.accessToken`
+		// guard above then performs the redirect declaratively once the store is
+		// consistent for every subscriber (Navbar, route guards, etc.).
+		// We intentionally do NOT call navigate() imperatively here: doing so can
+		// race the store update and make the destination render while selectors
+		// still read a stale `accessToken`, which looked like "logged out, then
+		// logged in on the next action".
+		await dispatch(loginThunk({ email, password }));
 	};
 
 	return (

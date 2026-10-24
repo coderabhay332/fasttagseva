@@ -1,0 +1,23 @@
+# Files excluded from the Elastic Beanstalk deployment bundle.
+# When .ebignore exists, the EB CLI uses it instead of .gitignore.
+#
+# IMPORTANT: the compiled `dist/` IS shipped (we build before deploy), so it is
+# intentionally NOT ignored here. node_modules is excluded because the instance
+# runs its own production `npm install`.
+
+# Secrets — NEVER deploy. Set these as EB environment properties instead.
+.env
+.env.*
+
+# Installed deps — the instance runs `npm install` (production) itself.
+node_modules/
+
+# Platform/build/local noise
+.vercel/
+.aws-tmp/
+*.log
+*.tsbuildinfo
+
+# VCS / editor
+.git/
+.gitignore

@@ -22,7 +22,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="how-it-works" className="scroll-mt-16 bg-slate-900 px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+      <section id="how-it-works" className="scroll-mt-20 px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <HowItWorksSection />
         </div>

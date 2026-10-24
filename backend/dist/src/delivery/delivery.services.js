@@ -12,7 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateDelivery = exports.getDelivery = exports.createDelivery = void 0;
 const delivery_schema_1 = require("./delivery.schema");
 const createDelivery = (userId, orderId, deliveryAddress, trackingNumber) => __awaiter(void 0, void 0, void 0, function* () {
-    const delivery = yield delivery_schema_1.DeliverySchema.create({ userId, orderId, deliveryAddress, trackingNumber });
+    // Upsert by (userId, orderId) so re-saving an address updates the existing
+    // record instead of creating duplicates.
+    const delivery = yield delivery_schema_1.DeliverySchema.findOneAndUpdate({ userId, orderId }, { userId, orderId, deliveryAddress, trackingNumber }, { new: true, upsert: true, setDefaultsOnInsert: true });
     return delivery;
 });
 exports.createDelivery = createDelivery;

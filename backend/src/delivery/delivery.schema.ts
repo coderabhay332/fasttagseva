@@ -1,6 +1,11 @@
 import { model, Schema } from "mongoose";
 import { DeliveryDto } from "./delivery.dto";
 const deliverySchema = new Schema<DeliveryDto>({
+    userId: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
     orderId: {
         type: String,
         required: true,

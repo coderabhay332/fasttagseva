@@ -1,9 +1,8 @@
 import bcrypt from "bcrypt";
-import { type Request } from "express";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import passport from "passport";
-import { ExtractJwt, Strategy, Strategy as JwtStrategy } from "passport-jwt";
+import { ExtractJwt, Strategy as JwtStrategy } from "passport-jwt";
 import { Strategy as LocalStrategy } from "passport-local";
 import { type IUser } from "../../user/user.dto";
 import * as userService from "../../user/user.service";
@@ -19,46 +18,28 @@ const isValidPassword = async function (value: string, password: string) {
 
 const options = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-  secretOrKey: process.env.JWT_SECRET || 'default_secret',
+  // Access tokens are signed with JWT_ACCESS_SECRET in createUserTokens.
+  secretOrKey: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'default_secret',
 };
 
 export const initPassport = () => {
   passport.use(
-    new Strategy(
-      {
-        secretOrKey: process.env.JWT_ACCESS_SECRET || "default_secret",
-        jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      },
-      async (token: any, done) => {
-        try {
-          if (!token) {
-            return done(createError(401, "Token missing"));
-          }
-          // Check token structure
-          done(null, token); // Pass the token to req.user
-        } catch (error) {
-          done(error);
-        }
-      }
-    )
-  );
-
-  passport.use(
     new JwtStrategy(options, async (jwtPayload: any, done: any) => {
       try {
-        console.log("JWT Payload received:", jwtPayload);
-        if (!jwtPayload.id) {
+        // Tokens carry the user id under `_id` (see createUserTokens).
+        // Fall back to `id` for backward compatibility with older tokens.
+        const userId = jwtPayload?._id ?? jwtPayload?.id;
+        if (!userId) {
           console.error("No user ID in JWT payload");
           return done(null, false);
         }
 
-        const user = await UserSchema.findById(jwtPayload.id).select("-password");
-        console.log("User lookup result:", user?._id);
-        
+        const user = await UserSchema.findById(userId).select("-password");
+
         if (user) {
           return done(null, user);
         }
-        console.error("No user found for ID:", jwtPayload.id);
+        console.error("No user found for ID:", userId);
         return done(null, false);
       } catch (error) {
         console.error("Passport JWT Error:", error);

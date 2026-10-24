@@ -12,8 +12,10 @@ import { IUser } from "./src/user/user.dto";
 import routes from "./src/routes";
 import { verifyWebhook as paymentsWebhookHandler } from "./src/payment/payment.webhook";
 
-// Only load dotenv in non-Vercel environments
-if (!process.env.VERCEL) {
+// Load a local .env only for local development. On managed platforms
+// (Vercel, AWS Elastic Beanstalk, etc.) env vars are injected by the platform,
+// and in production we never read a .env file from disk.
+if (!process.env.VERCEL && process.env.NODE_ENV !== "production") {
   dotenv.config();
 }
 
@@ -35,7 +37,10 @@ declare global {
   }
 }
 
-const port = Number(process.env.PORT) ?? 5000;
+// Use `||` not `??`: `Number(undefined)` is NaN, and `NaN ?? 5000` would keep
+// NaN (nullish coalescing only catches null/undefined). `|| 5000` falls back
+// correctly when PORT is unset or non-numeric. Elastic Beanstalk sets PORT.
+const port = Number(process.env.PORT) || 5000;
 const app = express();
 
 // 👇 Register webhook route with RAW body parser FIRST
@@ -52,11 +57,16 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
+      "https://tagseva.com",
+      "https://www.tagseva.com",
+      "https://tagseva.vercel.app",
       "https://fastagseva-frontend.vercel.app",
       "https://fasttagseva-c8zo.vercel.app",
       "https://fasttagseva.onrender.com",
       "http://localhost:3000",
-      "http://localhost:3001"
+      "http://localhost:3001",
+      "http://localhost:5173", // Vite dev server
+      "http://localhost:5174"  // Vite fallback port
     ];
     
     if (allowedOrigins.includes(origin)) {

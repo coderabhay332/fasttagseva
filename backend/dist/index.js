@@ -24,8 +24,10 @@ const database_services_1 = require("./src/common/services/database.services");
 const passport_jwt_services_1 = require("./src/common/services/passport-jwt.services");
 const routes_1 = __importDefault(require("./src/routes"));
 const payment_webhook_1 = require("./src/payment/payment.webhook");
-// Only load dotenv in non-Vercel environments
-if (!process.env.VERCEL) {
+// Load a local .env only for local development. On managed platforms
+// (Vercel, AWS Elastic Beanstalk, etc.) env vars are injected by the platform,
+// and in production we never read a .env file from disk.
+if (!process.env.VERCEL && process.env.NODE_ENV !== "production") {
     dotenv_1.default.config();
 }
 // Add debugging for Vercel environment
@@ -34,7 +36,10 @@ if (process.env.VERCEL) {
     console.log("NODE_ENV:", process.env.NODE_ENV);
     console.log("Available environment variables:", Object.keys(process.env).filter(key => key.includes('MONGODB') || key.includes('EMAIL') || key.includes('CLOUDINARY') || key.includes('JWT')));
 }
-const port = Number(process.env.PORT) || 8080;
+// Use `||` not `??`: `Number(undefined)` is NaN, and `NaN ?? 5000` would keep
+// NaN (nullish coalescing only catches null/undefined). `|| 5000` falls back
+// correctly when PORT is unset or non-numeric. Elastic Beanstalk sets PORT.
+const port = Number(process.env.PORT) || 5000;
 const app = (0, express_1.default)();
 // 👇 Register webhook route with RAW body parser FIRST
 app.post("/api/payments/webhook", body_parser_1.default.raw({ type: "application/json" }), // keep raw body for signature verification
@@ -46,13 +51,16 @@ app.use((0, cors_1.default)({
         if (!origin)
             return callback(null, true);
         const allowedOrigins = [
+            "https://tagseva.com",
+            "https://www.tagseva.com",
+            "https://tagseva.vercel.app",
             "https://fastagseva-frontend.vercel.app",
             "https://fasttagseva-c8zo.vercel.app",
             "https://fasttagseva.onrender.com",
-            "http://fasttag-backend-prod.elasticbeanstalk.com",
-            "https://fasttag-backend-prod.elasticbeanstalk.com",
             "http://localhost:3000",
-            "http://localhost:3001"
+            "http://localhost:3001",
+            "http://localhost:5173", // Vite dev server
+            "http://localhost:5174" // Vite fallback port
         ];
         if (allowedOrigins.includes(origin)) {
             callback(null, true);

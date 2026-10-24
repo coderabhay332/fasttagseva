@@ -75,37 +75,25 @@ const isValidPassword = function (value, password) {
 };
 const options = {
     jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
-    secretOrKey: process.env.JWT_SECRET || 'default_secret',
+    // Access tokens are signed with JWT_ACCESS_SECRET in createUserTokens.
+    secretOrKey: process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'default_secret',
 };
 const initPassport = () => {
-    passport_1.default.use(new passport_jwt_1.Strategy({
-        secretOrKey: process.env.JWT_ACCESS_SECRET || "default_secret",
-        jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
-    }, (token, done) => __awaiter(void 0, void 0, void 0, function* () {
-        try {
-            if (!token) {
-                return done((0, http_errors_1.default)(401, "Token missing"));
-            }
-            // Check token structure
-            done(null, token); // Pass the token to req.user
-        }
-        catch (error) {
-            done(error);
-        }
-    })));
     passport_1.default.use(new passport_jwt_1.Strategy(options, (jwtPayload, done) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
         try {
-            console.log("JWT Payload received:", jwtPayload);
-            if (!jwtPayload.id) {
+            // Tokens carry the user id under `_id` (see createUserTokens).
+            // Fall back to `id` for backward compatibility with older tokens.
+            const userId = (_a = jwtPayload === null || jwtPayload === void 0 ? void 0 : jwtPayload._id) !== null && _a !== void 0 ? _a : jwtPayload === null || jwtPayload === void 0 ? void 0 : jwtPayload.id;
+            if (!userId) {
                 console.error("No user ID in JWT payload");
                 return done(null, false);
             }
-            const user = yield user_schema_1.default.findById(jwtPayload.id).select("-password");
-            console.log("User lookup result:", user === null || user === void 0 ? void 0 : user._id);
+            const user = yield user_schema_1.default.findById(userId).select("-password");
             if (user) {
                 return done(null, user);
             }
-            console.error("No user found for ID:", jwtPayload.id);
+            console.error("No user found for ID:", userId);
             return done(null, false);
         }
         catch (error) {

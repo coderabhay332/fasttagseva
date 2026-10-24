@@ -17,7 +17,6 @@ export const updateProfile = async (
       { userId, ...profileData },
       { new: true, upsert: true }
     );
-    console.log("Profile upserted result:", updated);
 
     return updated;     
 };

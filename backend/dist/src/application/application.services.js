@@ -17,6 +17,9 @@ const application_schema_1 = require("./application.schema");
 const cloudinary_services_1 = require("../common/services/cloudinary.services");
 const http_errors_1 = __importDefault(require("http-errors"));
 const profile_schema_1 = require("../profile/profile.schema");
+// Build a query filter that enforces ownership for non-admin users.
+// ADMIN can access any application; a USER is restricted to their own.
+const ownershipFilter = (id, userId, role) => role === "ADMIN" ? { _id: id } : { _id: id, userId };
 const createApplication = (userId, applicationData) => __awaiter(void 0, void 0, void 0, function* () {
     const application = new application_schema_1.Application(Object.assign(Object.assign({}, applicationData), { userId }));
     application.status = "PENDING";
@@ -24,25 +27,37 @@ const createApplication = (userId, applicationData) => __awaiter(void 0, void 0,
     return application;
 });
 exports.createApplication = createApplication;
+const APPLICATION_STATUSES = [
+    "NOT SUBMITTED",
+    "PENDING",
+    "AGENT ASSIGNED",
+    "REJECTED",
+    "DONE",
+];
 const updateStatus = (updateData) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!updateData.status || !APPLICATION_STATUSES.includes(updateData.status)) {
+        throw (0, http_errors_1.default)(400, "Invalid or missing application status");
+    }
     const application = yield application_schema_1.Application.findOne({ _id: updateData.id });
     if (!application) {
         throw (0, http_errors_1.default)(404, "Application not found");
-    }
-    if (updateData.status === undefined) {
-        throw new Error("Status must be defined");
     }
     application.status = updateData.status;
     yield application.save();
     return application;
 });
 exports.updateStatus = updateStatus;
-const updateApplication = (userId, updateData, id) => __awaiter(void 0, void 0, void 0, function* () {
-    const application = yield application_schema_1.Application.findOne({ _id: id });
+const updateApplication = (userId, updateData, id, role) => __awaiter(void 0, void 0, void 0, function* () {
+    // Prevent clients from changing status or reassigning ownership via a
+    // generic update. Status is managed only through the admin updateStatus flow.
+    const safeUpdate = Object.assign({}, updateData);
+    delete safeUpdate.status;
+    delete safeUpdate.userId;
+    const application = yield application_schema_1.Application.findOne(ownershipFilter(id, userId, role));
     if (!application) {
         throw (0, http_errors_1.default)(404, "Application not found");
     }
-    Object.assign(application, updateData);
+    Object.assign(application, safeUpdate);
     yield application.save();
     return application;
 });
@@ -52,13 +67,13 @@ const getAllApplicationsForUser = (userId) => __awaiter(void 0, void 0, void 0, 
     return applications;
 });
 exports.getAllApplicationsForUser = getAllApplicationsForUser;
-const getApplicationById = (userId, id) => __awaiter(void 0, void 0, void 0, function* () {
-    const application = yield application_schema_1.Application.findOne({ _id: id });
+const getApplicationById = (userId, id, role) => __awaiter(void 0, void 0, void 0, function* () {
+    const application = yield application_schema_1.Application.findOne(ownershipFilter(id, userId, role));
     return application;
 });
 exports.getApplicationById = getApplicationById;
 const deleteApplication = (userId, id) => __awaiter(void 0, void 0, void 0, function* () {
-    const application = yield application_schema_1.Application.findOneAndDelete({ _id: id });
+    const application = yield application_schema_1.Application.findOneAndDelete({ _id: id, userId });
     if (!application) {
         throw (0, http_errors_1.default)(404, "Application not found");
     }
@@ -100,7 +115,7 @@ const uploadPanImage = (file, userId, id) => __awaiter(void 0, void 0, void 0, f
         throw new Error("No file provided for upload");
     const userFolder = `users/${userId}/`;
     try {
-        const application = yield application_schema_1.Application.findById(id);
+        const application = yield application_schema_1.Application.findOne({ _id: id, userId });
         if (!application)
             throw (0, http_errors_1.default)(404, "Application not found");
         const result = yield (0, cloudinary_services_1.uploadImage)(file, userFolder);
@@ -119,7 +134,7 @@ const uploadRc = (file, userId, id) => __awaiter(void 0, void 0, void 0, functio
         throw new Error("No file provided for upload");
     const userFolder = `users/${userId}/`;
     try {
-        const application = yield application_schema_1.Application.findById(id);
+        const application = yield application_schema_1.Application.findOne({ _id: id, userId });
         if (!application)
             throw (0, http_errors_1.default)(404, "Application not found");
         const result = yield (0, cloudinary_services_1.uploadImage)(file, userFolder);
@@ -138,7 +153,7 @@ const uploadVehicleFront = (file, userId, id) => __awaiter(void 0, void 0, void 
         throw new Error("No file provided for upload");
     const userFolder = `users/${userId}/`;
     try {
-        const application = yield application_schema_1.Application.findById(id);
+        const application = yield application_schema_1.Application.findOne({ _id: id, userId });
         if (!application)
             throw (0, http_errors_1.default)(404, "Application not found");
         const result = yield (0, cloudinary_services_1.uploadImage)(file, userFolder);
@@ -157,7 +172,7 @@ const uploadVehicleSideImage = (file, userId, id) => __awaiter(void 0, void 0, v
         throw new Error("No file provided for upload");
     const userFolder = `users/${userId}/`;
     try {
-        const application = yield application_schema_1.Application.findById(id);
+        const application = yield application_schema_1.Application.findOne({ _id: id, userId });
         if (!application)
             throw (0, http_errors_1.default)(404, "Application not found");
         const result = yield (0, cloudinary_services_1.uploadImage)(file, userFolder);

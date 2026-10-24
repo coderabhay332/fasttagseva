@@ -8,7 +8,8 @@ const errorHandler = (err, req, res, next) => {
         message: ((_b = err === null || err === void 0 ? void 0 : err.message) !== null && _b !== void 0 ? _b : "Something went wrong!"),
         data: (_c = err === null || err === void 0 ? void 0 : err.data) !== null && _c !== void 0 ? _c : {},
     };
+    // Do NOT call next() after sending — once a response is sent, forwarding to
+    // the default Express handler throws ERR_HTTP_HEADERS_SENT.
     res.status(response.error_code).send(response);
-    next();
 };
 exports.default = errorHandler;

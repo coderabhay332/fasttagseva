@@ -5,8 +5,16 @@ import { Profile } from "../profile/profile.schema";
 interface IApplication {
   vehicle: string;
   chasisNumber: string;
+  engineNumber: string;
   status?: "NOT SUBMITTED" | "PENDING" | "AGENT ASSIGNED" | "REJECTED" | "DONE";
 }
+
+type Role = "USER" | "ADMIN";
+
+// Build a query filter that enforces ownership for non-admin users.
+// ADMIN can access any application; a USER is restricted to their own.
+const ownershipFilter = (id: string, userId: string, role?: Role) =>
+  role === "ADMIN" ? { _id: id } : { _id: id, userId };
 
 export const createApplication = async (userId: string, applicationData: IApplication) => {
 
@@ -18,15 +26,23 @@ export const createApplication = async (userId: string, applicationData: IApplic
 };
 
 
+const APPLICATION_STATUSES = [
+  "NOT SUBMITTED",
+  "PENDING",
+  "AGENT ASSIGNED",
+  "REJECTED",
+  "DONE",
+] as const;
+
 export const updateStatus = async (
   updateData: { id: string, status: IApplication["status"] }
 ) => {
+  if (!updateData.status || !APPLICATION_STATUSES.includes(updateData.status as any)) {
+    throw createHttpError(400, "Invalid or missing application status");
+  }
   const application = await Application.findOne({ _id: updateData.id });
   if (!application) {
     throw createHttpError(404, "Application not found");
-  }
-  if (updateData.status === undefined) {
-    throw new Error("Status must be defined");
   }
   application.status = updateData.status;
   await application.save();
@@ -36,13 +52,20 @@ export const updateStatus = async (
 export const updateApplication = async (
   userId: string,
   updateData: Partial<IApplication>,
-  id: string
+  id: string,
+  role?: Role
 ) => {
-  const application = await Application.findOne({ _id: id });
+  // Prevent clients from changing status or reassigning ownership via a
+  // generic update. Status is managed only through the admin updateStatus flow.
+  const safeUpdate = { ...updateData } as Partial<IApplication> & { userId?: unknown };
+  delete (safeUpdate as any).status;
+  delete (safeUpdate as any).userId;
+
+  const application = await Application.findOne(ownershipFilter(id, userId, role));
   if (!application) {
     throw createHttpError(404, "Application not found");
   }
-  Object.assign(application, updateData);
+  Object.assign(application, safeUpdate);
   await application.save();
   return application;
 };
@@ -52,13 +75,13 @@ export const getAllApplicationsForUser = async (userId: string) => {
   return applications;
 };
 
-export const getApplicationById = async (userId: string, id: string) => {
-  const application = await Application.findOne({ _id: id });
+export const getApplicationById = async (userId: string, id: string, role?: Role) => {
+  const application = await Application.findOne(ownershipFilter(id, userId, role));
   return application;
 };
 
 export const deleteApplication = async (userId: string, id: string) => {
-  const application = await Application.findOneAndDelete({  _id: id });
+  const application = await Application.findOneAndDelete({ _id: id, userId });
   if (!application) {
     throw createHttpError(404, "Application not found");
   }
@@ -103,7 +126,7 @@ export const uploadPanImage = async (file: Express.Multer.File, userId: string, 
   const userFolder = `users/${userId}/`;
 
   try {
-    const application = await Application.findById(id);
+    const application = await Application.findOne({ _id: id, userId });
     if (!application) throw createHttpError(404, "Application not found");
 
     const result: string = await uploadImage(file, userFolder);
@@ -123,7 +146,7 @@ export const uploadRc = async (file: Express.Multer.File, userId: string, id: st
   const userFolder = `users/${userId}/`;
 
   try {
-    const application = await Application.findById(id);
+    const application = await Application.findOne({ _id: id, userId });
     if (!application) throw createHttpError(404, "Application not found");
 
     const result: string = await uploadImage(file, userFolder);
@@ -144,7 +167,7 @@ export const uploadVehicleFront = async (file: Express.Multer.File, userId: stri
   const userFolder = `users/${userId}/`;
 
   try {
-    const application = await Application.findById(id);
+    const application = await Application.findOne({ _id: id, userId });
     if (!application) throw createHttpError(404, "Application not found");
 
     const result: string = await uploadImage(file, userFolder);
@@ -164,7 +187,7 @@ export const uploadVehicleSideImage = async (file: Express.Multer.File, userId: 
   const userFolder = `users/${userId}/`;
 
   try {
-    const application = await Application.findById(id);
+    const application = await Application.findOne({ _id: id, userId });
     if (!application) throw createHttpError(404, "Application not found");
 
     const result: string = await uploadImage(file, userFolder);

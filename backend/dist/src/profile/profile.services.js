@@ -19,7 +19,6 @@ const getProfile = (userId) => __awaiter(void 0, void 0, void 0, function* () {
 exports.getProfile = getProfile;
 const updateProfile = (userId, profileData) => __awaiter(void 0, void 0, void 0, function* () {
     const updated = yield profile_schema_1.Profile.findOneAndUpdate({ userId }, Object.assign({ userId }, profileData), { new: true, upsert: true });
-    console.log("Profile upserted result:", updated);
     return updated;
 });
 exports.updateProfile = updateProfile;

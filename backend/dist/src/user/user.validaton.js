@@ -61,6 +61,7 @@ exports.createUser = checkExact([
         return true;
     })),
     body('password').notEmpty().withMessage('Password is required').isString().withMessage('Password must be a string'),
+    body('phone').optional().isString().withMessage('Phone must be a string'),
     body('confirmPassword').custom((value, { req }) => {
         if (value !== req.body.password) {
             throw new Error('Password confirmation does not match password');

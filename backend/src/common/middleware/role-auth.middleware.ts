@@ -24,17 +24,25 @@ export const roleAuth = (roles: IUser["role"][], publicRoutes: string[] = []) =>
       }
       const token =
         req.headers.authorization?.replace("Bearer ", "") ??
-        req.cookies.accessToken;
+        req.cookies?.accessToken;
       if (!token) {
         throw createHttpError(401, {
           message: `Invalid token`,
         });
       }
+
+      // Access tokens are signed with JWT_ACCESS_SECRET (see createUserTokens).
+      // Verification MUST use the same secret, otherwise every protected route
+      // rejects valid tokens whenever the two secrets differ.
+      const accessSecret = process.env.JWT_ACCESS_SECRET ?? process.env.JWT_SECRET;
+      if (!accessSecret) {
+        throw createHttpError(500, {
+          message: "Server misconfiguration: JWT access secret is not set",
+        });
+      }
+
       try {
-        const decodedUser = jwt.verify(
-          token,
-          process.env.JWT_SECRET!
-        ) as JwtPayload;
+        const decodedUser = jwt.verify(token, accessSecret) as JwtPayload;
         req.user = decodedUser as IUser;
       } catch (err) {
         throw createHttpError(401, {

@@ -33,7 +33,7 @@ export default function Navbar() {
 				<div className="flex h-16 items-center justify-between">
 					{/* Logo */}
 					<Link
-						to="/"
+						to={accessToken ? '/onboarding' : '/'}
 						className="flex items-center gap-2 transition-transform hover:-translate-y-0.5"
 					>
 						<div className="grid h-9 w-9 place-items-center rounded-xl border-2 border-slate-900 bg-yellow-400 shadow-[2px_2px_0_0_#0F172A]">

@@ -199,7 +199,7 @@ export default function HeroHeader() {
 
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
               <button
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate("/apply")}
                 className="group inline-flex items-center gap-2 rounded-2xl border-2 border-slate-900 bg-yellow-400 px-7 py-4 text-lg font-bold text-slate-900 shadow-[5px_5px_0_0_#0F172A] transition-transform hover:-translate-y-1 active:translate-y-0"
               >
                 Apply for FASTag

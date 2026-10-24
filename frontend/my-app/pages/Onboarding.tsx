@@ -17,6 +17,8 @@ import Button from '../components/ui/Button';
 import Stepper from '../components/ui/Stepper';
 import FileDrop from '../components/ui/FileDrop';
 import PaymentOptionCard from '../components/PaymentOptionCard';
+import DeliveryLocationForm from '../components/DeliveryLocationForm';
+import { readApplyDraft, clearApplyDraft } from '../utils/applyDraft';
 import {
 	CarFront,
 	FileText,
@@ -34,8 +36,11 @@ const STEPS = [
 	{ key: 'vehicle', label: 'Vehicle' },
 	{ key: 'documents', label: 'Documents' },
 	{ key: 'pay', label: 'Payment' },
+	{ key: 'address', label: 'Delivery' },
 	{ key: 'done', label: 'Done' },
 ];
+
+const stepIndexOf = (key: string) => STEPS.findIndex((s) => s.key === key);
 
 const BANK_PRICING: Record<string, number> = {
 	SBI: 400,
@@ -79,13 +84,17 @@ export default function Onboarding() {
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 
+	// A visitor may have entered a few details on the public /apply page before
+	// signing up. Rehydrate them here so nothing is re-typed. Cleared once read.
+	const draft = useMemo(() => readApplyDraft(), []);
+
 	// Step 1 — details
-	const [phone, setPhone] = useState('');
+	const [phone, setPhone] = useState(draft.phone || '');
 	const [dob, setDob] = useState('');
 	const [pan, setPan] = useState('');
 
 	// Step 2 — vehicle
-	const [vehicle, setVehicle] = useState('');
+	const [vehicle, setVehicle] = useState(draft.vehicle || '');
 	const [engineNumber, setEngineNumber] = useState('');
 	const [chasisNumber, setChasisNumber] = useState('');
 
@@ -105,6 +114,9 @@ export default function Onboarding() {
 
 	// Prefill profile details (phone saved at signup, plus any saved KYC).
 	useEffect(() => {
+		// The /apply draft has now seeded initial state; drop it so a later
+		// visit starts clean and doesn't resurrect stale values.
+		clearApplyDraft();
 		(async () => {
 			try {
 				const res = await profileService.getProfile();
@@ -139,9 +151,11 @@ export default function Onboarding() {
 					}));
 				}
 			} catch {}
-			const isPaid = await waitForPaid(routeId);
-			// Land the returning user on the most useful step.
-			setStepIndex(isPaid ? 3 : 4);
+			// The user has returned from the payment gateway. Move forward to the
+			// delivery-address step rather than dropping them back on an earlier
+			// step. (We still refresh paid status in the background for display.)
+			void waitForPaid(routeId);
+			setStepIndex(stepIndexOf('address'));
 		})();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [routeId]);
@@ -261,8 +275,12 @@ export default function Onboarding() {
 	const onPickDoc = (key: DocKey, file: File) => {
 		setError(null);
 		setDocs((prev) => ({ ...prev, [key]: { ...prev[key], file } }));
-		// If payment is already done, upload right away; otherwise hold the file.
-		if (paid) void doUpload(key, file);
+		// Upload straight away once we have an application to attach it to.
+		// (Uploads used to wait for payment confirmation, but that depends on a
+		// webhook that can't reach localhost in dev and can lag in prod, so the
+		// documents would silently never upload. The upload endpoints only need
+		// a valid application id, which exists by this step.)
+		if (appId) void doUpload(key, file);
 	};
 
 	const startPayment = async () => {
@@ -287,9 +305,9 @@ export default function Onboarding() {
 				window.location.href = paymentUrl;
 				return;
 			}
-			// No redirect needed — treat as paid and continue to uploads.
+			// No redirect needed — payment is settled, go collect the address.
 			await refreshPaid(appId);
-			setStepIndex(3);
+			setStepIndex(stepIndexOf('address'));
 		} else {
 			setError((res as any).payload || 'Payment could not be started.');
 		}
@@ -427,11 +445,9 @@ export default function Onboarding() {
 					<Card>
 						<CardHeader>Upload documents</CardHeader>
 						<CardBody className="space-y-4">
-							{!paid && (
-								<div className="rounded-xl border-2 border-yellow-400 bg-yellow-50 p-3 text-sm text-yellow-800">
-									Pick your documents now — they'll upload automatically right after payment.
-								</div>
-							)}
+							<div className="rounded-xl border-2 border-blue-400 bg-blue-50 p-3 text-sm text-blue-800">
+								Upload clear photos of each document. They save automatically as you add them.
+							</div>
 							<div className="grid gap-4 sm:grid-cols-2">
 								{DOC_META.map((m) => (
 									<FileDrop
@@ -453,16 +469,10 @@ export default function Onboarding() {
 							<Button variant="ghost" onClick={goBack}>
 								<ArrowLeft className="h-5 w-5" /> Back
 							</Button>
-							{paid ? (
-								<Button onClick={goNext} disabled={!docsDone}>
-									{docsDone ? 'Finish' : 'Upload all to continue'}{' '}
-									<ArrowRight className="h-5 w-5" />
-								</Button>
-							) : (
-								<Button onClick={goNext}>
-									Go to payment <ArrowRight className="h-5 w-5" />
-								</Button>
-							)}
+							<Button onClick={goNext} disabled={!docsDone}>
+								{docsDone ? 'Go to payment' : 'Upload all to continue'}{' '}
+								<ArrowRight className="h-5 w-5" />
+							</Button>
 						</CardFooter>
 					</Card>
 				)}
@@ -488,7 +498,7 @@ export default function Onboarding() {
 								<span className="font-display text-2xl font-extrabold text-slate-900">₹{price}</span>
 							</div>
 							<p className="flex items-center gap-1.5 text-xs text-slate-500">
-								<Clock className="h-4 w-4" /> Documents upload automatically once payment succeeds.
+								<Clock className="h-4 w-4" /> You'll set your delivery address right after payment.
 							</p>
 						</CardBody>
 						<CardFooter className="flex justify-between">
@@ -502,7 +512,35 @@ export default function Onboarding() {
 					</Card>
 				)}
 
-				{/* STEP 5 — Done */}
+				{/* STEP 5 — Delivery address */}
+				{step === 'address' && (
+					<div className="space-y-4">
+						<div className="rounded-xl border-2 border-emerald-500 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
+							Payment received 🎉 Where should we deliver your FASTag?
+						</div>
+						{appId ? (
+							<DeliveryLocationForm
+								applicationId={appId}
+								onSuccess={goNext}
+							/>
+						) : (
+							<Card>
+								<CardBody className="py-8 text-center text-slate-600">
+									We couldn't find your application reference. Please reopen it from{' '}
+									<button
+										className="font-semibold text-blue-600 underline"
+										onClick={() => navigate('/my-application')}
+									>
+										My applications
+									</button>
+									.
+								</CardBody>
+							</Card>
+						)}
+					</div>
+				)}
+
+				{/* STEP 6 — Done */}
 				{step === 'done' && (
 					<Card>
 						<CardBody className="space-y-5 py-10 text-center">
@@ -511,8 +549,8 @@ export default function Onboarding() {
 							</span>
 							<h2 className="font-display text-3xl font-extrabold text-slate-900">You're all set!</h2>
 							<p className="mx-auto max-w-md text-slate-600">
-								Your FASTag application is complete. We'll review your documents and keep you posted on
-								delivery.
+								Your FASTag application is complete and your delivery address is saved. We'll review your
+								documents and deliver your FASTag to your doorstep.
 							</p>
 							<div className="flex flex-wrap justify-center gap-3">
 								<Button variant="secondary" onClick={() => navigate('/my-application')}>

@@ -48,26 +48,11 @@ export const createPaymentService = async (
     };
   }
 
-  console.log("Creating payment with params:", {
-    amount,
-    customerName,
-    customerEmail: customerEmail.substring(0, 3) + "...", // Log partial email for privacy
-    customerPhone: customerPhone.substring(0, 3) + "...", // Log partial phone for privacy
-    userId,
-    hasBaseUrl: !!process.env.BASE_URL
-  });
-
   try {
     const amountInPaise = Math.round(amount * 100);
     const receiptId = `pl_${Date.now()}`;
 
-    // ✅ Create Razorpay Payment Link
-    console.log("Calling Razorpay API with payload:", {
-      amount: amountInPaise,
-      currency: "INR",
-      description: `Payment for ${customerName}`
-    });
-    
+    // Create Razorpay Payment Link
     // Configure payment methods based on the selected method
     const paymentLinkOptions: any = {
       amount: amountInPaise,

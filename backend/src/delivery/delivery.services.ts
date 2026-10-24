@@ -1,7 +1,13 @@
 import { DeliverySchema } from "./delivery.schema";
 import { DeliveryAddress } from "./delivery.dto";
 export const createDelivery = async (userId: string, orderId: string, deliveryAddress: DeliveryAddress, trackingNumber: string) => {
-    const delivery = await DeliverySchema.create({ userId, orderId, deliveryAddress, trackingNumber });
+    // Upsert by (userId, orderId) so re-saving an address updates the existing
+    // record instead of creating duplicates.
+    const delivery = await DeliverySchema.findOneAndUpdate(
+        { userId, orderId },
+        { userId, orderId, deliveryAddress, trackingNumber },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
     return delivery;
 };
 

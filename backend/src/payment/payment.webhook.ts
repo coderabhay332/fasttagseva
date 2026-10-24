@@ -10,7 +10,6 @@ export const verifyWebhook = asyncHandler(async (req: Request, res: Response) =>
   const signature = req.headers['x-razorpay-signature'] as string | undefined;
   const rawBody = (req as any).body instanceof Buffer ? (req as any).body : Buffer.from((req as any).body || '');
 
-  console.log(webhookSecret, signature, rawBody)
   if (!signature || !webhookSecret) {
     res.status(400).json(createResponse(null, "Missing webhook signature or secret"));
     return;
@@ -21,7 +20,14 @@ export const verifyWebhook = asyncHandler(async (req: Request, res: Response) =>
     .update(rawBody)
     .digest('hex');
 
-  if (expected !== signature) {
+  // Constant-time comparison to avoid signature timing attacks.
+  const expectedBuf = Buffer.from(expected, 'utf8');
+  const signatureBuf = Buffer.from(signature, 'utf8');
+  const signatureValid =
+    expectedBuf.length === signatureBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, signatureBuf);
+
+  if (!signatureValid) {
     res.status(400).json(createResponse(null, "Invalid webhook signature"));
     return;
   }
@@ -38,7 +44,6 @@ export const verifyWebhook = asyncHandler(async (req: Request, res: Response) =>
       rawEvent?: any
     ) => {
       try {
-        console.log('updatePaymentFromWebhook called with:', { eventType, plEntity, payEntity }); // <-- Add this
         const paymentLinkId: string | undefined = plEntity?.id || payEntity?.link_id;
         const paymentId: string | undefined = payEntity?.id;
         if (!paymentLinkId && !paymentId) {
@@ -49,15 +54,15 @@ export const verifyWebhook = asyncHandler(async (req: Request, res: Response) =>
         // Determine status
         let sourceStatus = (plEntity?.status || payEntity?.status || rawEvent?.payload?.payment_link?.entity?.status || '').toLowerCase();
 
-        // Map 'created' to 'PAID' only for successful payment events
+        // Map 'created' to 'PAID' only for successful payment events.
+        // Razorpay's real event names use an underscore: `payment_link.paid`.
         if (
           sourceStatus === 'created' &&
-          (eventType === 'payment.link.paid' || eventType === 'payment.captured')
+          (eventType === 'payment_link.paid' || eventType === 'payment.captured')
         ) {
           sourceStatus = 'paid';
         }
 
-        console.log("sourceStatus", sourceStatus)
         let mappedStatus: 'PAID' | 'FAILED' | 'CANCELLED' | 'ATTEMPTED' = 'ATTEMPTED';
         if (sourceStatus === 'paid' || sourceStatus === 'captured') mappedStatus = 'PAID';
         else if (sourceStatus === 'failed') mappedStatus = 'FAILED';
@@ -97,7 +102,6 @@ export const verifyWebhook = asyncHandler(async (req: Request, res: Response) =>
     if (eventType === 'payment_link.paid' || eventType === 'payment_link.cancelled' || eventType === 'payment_link.partially_paid' || eventType === 'payment_link.expired') {
       const pl = event.payload?.payment_link?.entity;
       const pay = event.payload?.payment?.entity; // might be undefined for link events
-      console.log('Webhook payload:', { pl, pay, eventType }); // <-- Add this
       const result = await updatePaymentFromWebhook(eventType, pl, pay, event);
       if (!result.success) {
         res.status(400).json({ success: false, message: result.message, error: (result as any).error });
@@ -110,7 +114,6 @@ export const verifyWebhook = asyncHandler(async (req: Request, res: Response) =>
     if (eventType === 'payment.captured' || eventType === 'payment.failed') {
       const pay = event.payload?.payment?.entity;
       const pl = undefined;
-      console.log('Webhook payload:', { pl, pay, eventType }); // <-- Add this
       const result = await updatePaymentFromWebhook(eventType, pl, pay, event);
       if (!result.success) {
         res.status(400).json({ success: false, message: result.message, error: (result as any).error });
@@ -123,7 +126,7 @@ export const verifyWebhook = asyncHandler(async (req: Request, res: Response) =>
     res.status(400).json(createResponse(null, "Unhandled event type"));
   } catch (err) {
     console.error('Webhook processing error:', err);
-    res.status(500).json(createResponse("Webhook processing error", String(err)));
+    res.status(500).json(createResponse(null, "Webhook processing error"));
   }
 });
 

@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadUserImage = exports.resetPassword = exports.forgotPassword = exports.refreshToken = exports.updateUserToken = exports.getUserByEmail = exports.login = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.me = exports.updateUser = exports.createUser = exports.generateRefreshToken = void 0;
 const user_schema_1 = __importDefault(require("./user.schema"));
+const profile_schema_1 = require("../profile/profile.schema");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const passport_jwt_services_1 = require("../common/services/passport-jwt.services");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
@@ -27,6 +28,16 @@ const generateRefreshToken = (id, role) => {
 exports.generateRefreshToken = generateRefreshToken;
 const createUser = (data) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield user_schema_1.default.create(Object.assign(Object.assign({}, data), { active: true }));
+    // Persist the phone into the user's Profile so it is not lost after signup.
+    // KYC fields (pancard, dateOfBirth) are filled in later from the Profile page.
+    if (data.phone) {
+        try {
+            yield profile_schema_1.Profile.findOneAndUpdate({ userId: result._id }, { userId: result._id, phone: data.phone }, { new: true, upsert: true });
+        }
+        catch (err) {
+            console.error("Failed to create profile for new user:", err);
+        }
+    }
     return result.toObject();
 });
 exports.createUser = createUser;
@@ -38,7 +49,6 @@ const updateUser = (id, data) => __awaiter(void 0, void 0, void 0, function* () 
 });
 exports.updateUser = updateUser;
 const me = (user) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log("user", user._id);
     if (!user || !user._id) {
         throw new Error('User not authenticated');
     }
@@ -99,23 +109,24 @@ exports.updateUserToken = updateUserToken;
 const refreshToken = (user, refreshToken) => __awaiter(void 0, void 0, void 0, function* () {
     if (!refreshToken)
         throw new Error("No refresh token provided");
+    // Identify the user by the presented refresh token rather than trusting
+    // req.user (the access token may be missing or expired during refresh).
     const userData = yield user_schema_1.default.findOne({ refreshToken });
     if (!userData)
         throw new Error("Invalid refresh token");
-    console.log("user", userData);
     const tokens = (0, passport_jwt_services_1.createUserTokens)(userData);
     if (!tokens)
         throw new Error("Failed to create tokens");
     const newRefreshToken = tokens.refreshToken;
-    const data = yield user_schema_1.default.findByIdAndUpdate(user._id, { refreshToken: newRefreshToken });
-    console.log("data", data);
+    // Rotate the refresh token on the token's actual owner.
+    yield user_schema_1.default.findByIdAndUpdate(userData._id, { refreshToken: newRefreshToken });
     return {
         accessToken: tokens.accessToken,
         refreshToken: newRefreshToken,
         user: {
-            _id: user._id,
-            email: user.email,
-            name: user.name,
+            _id: userData._id,
+            email: userData.email,
+            name: userData.name,
         },
     };
 });

@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CarFront, Truck } from "lucide-react";
 import { SectionHeading } from "./FeaturesSection";
+import { saveApplyDraft } from "../../utils/applyDraft";
 
 // 4-wheeler FASTag pricing per partner bank (₹)
 // `key` must match the keys in Payment.tsx BANK_PRICING so the selection
@@ -18,13 +19,11 @@ const DELIVERY_FEE = 100;
 export default function PricingSection() {
   const navigate = useNavigate();
 
-  // Remember the bank the user picked so the payment page can pre-select it,
-  // then send the user into the signup / application flow.
+  // Remember the bank the user picked so the apply flow (and later the payment
+  // page) can pre-select it, then send the user into the public apply flow.
   const handleApply = (bankKey: string) => {
-    try {
-      localStorage.setItem("selectedBank", bankKey);
-    } catch {}
-    navigate("/signup");
+    saveApplyDraft({ bank: bankKey });
+    navigate("/apply");
   };
 
   return (

@@ -23,7 +23,6 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || '';
     const signature = req.headers['x-razorpay-signature'];
     const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(req.body || '');
-    console.log(webhookSecret, signature, rawBody);
     if (!signature || !webhookSecret) {
         res.status(400).json((0, response_helper_1.createResponse)(null, "Missing webhook signature or secret"));
         return;
@@ -32,7 +31,12 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
         .createHmac('sha256', webhookSecret)
         .update(rawBody)
         .digest('hex');
-    if (expected !== signature) {
+    // Constant-time comparison to avoid signature timing attacks.
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const signatureBuf = Buffer.from(signature, 'utf8');
+    const signatureValid = expectedBuf.length === signatureBuf.length &&
+        crypto_1.default.timingSafeEqual(expectedBuf, signatureBuf);
+    if (!signatureValid) {
         res.status(400).json((0, response_helper_1.createResponse)(null, "Invalid webhook signature"));
         return;
     }
@@ -43,7 +47,6 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
         const updatePaymentFromWebhook = (eventType, plEntity, payEntity, rawEvent) => __awaiter(void 0, void 0, void 0, function* () {
             var _a, _b, _c;
             try {
-                console.log('updatePaymentFromWebhook called with:', { eventType, plEntity, payEntity }); // <-- Add this
                 const paymentLinkId = (plEntity === null || plEntity === void 0 ? void 0 : plEntity.id) || (payEntity === null || payEntity === void 0 ? void 0 : payEntity.link_id);
                 const paymentId = payEntity === null || payEntity === void 0 ? void 0 : payEntity.id;
                 if (!paymentLinkId && !paymentId) {
@@ -52,12 +55,12 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
                 }
                 // Determine status
                 let sourceStatus = ((plEntity === null || plEntity === void 0 ? void 0 : plEntity.status) || (payEntity === null || payEntity === void 0 ? void 0 : payEntity.status) || ((_c = (_b = (_a = rawEvent === null || rawEvent === void 0 ? void 0 : rawEvent.payload) === null || _a === void 0 ? void 0 : _a.payment_link) === null || _b === void 0 ? void 0 : _b.entity) === null || _c === void 0 ? void 0 : _c.status) || '').toLowerCase();
-                // Map 'created' to 'PAID' only for successful payment events
+                // Map 'created' to 'PAID' only for successful payment events.
+                // Razorpay's real event names use an underscore: `payment_link.paid`.
                 if (sourceStatus === 'created' &&
-                    (eventType === 'payment.link.paid' || eventType === 'payment.captured')) {
+                    (eventType === 'payment_link.paid' || eventType === 'payment.captured')) {
                     sourceStatus = 'paid';
                 }
-                console.log("sourceStatus", sourceStatus);
                 let mappedStatus = 'ATTEMPTED';
                 if (sourceStatus === 'paid' || sourceStatus === 'captured')
                     mappedStatus = 'PAID';
@@ -96,7 +99,6 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
         if (eventType === 'payment_link.paid' || eventType === 'payment_link.cancelled' || eventType === 'payment_link.partially_paid' || eventType === 'payment_link.expired') {
             const pl = (_b = (_a = event.payload) === null || _a === void 0 ? void 0 : _a.payment_link) === null || _b === void 0 ? void 0 : _b.entity;
             const pay = (_d = (_c = event.payload) === null || _c === void 0 ? void 0 : _c.payment) === null || _d === void 0 ? void 0 : _d.entity; // might be undefined for link events
-            console.log('Webhook payload:', { pl, pay, eventType }); // <-- Add this
             const result = yield updatePaymentFromWebhook(eventType, pl, pay, event);
             if (!result.success) {
                 res.status(400).json({ success: false, message: result.message, error: result.error });
@@ -108,7 +110,6 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
         if (eventType === 'payment.captured' || eventType === 'payment.failed') {
             const pay = (_f = (_e = event.payload) === null || _e === void 0 ? void 0 : _e.payment) === null || _f === void 0 ? void 0 : _f.entity;
             const pl = undefined;
-            console.log('Webhook payload:', { pl, pay, eventType }); // <-- Add this
             const result = yield updatePaymentFromWebhook(eventType, pl, pay, event);
             if (!result.success) {
                 res.status(400).json({ success: false, message: result.message, error: result.error });
@@ -121,6 +122,6 @@ exports.verifyWebhook = (0, express_async_handler_1.default)((req, res) => __awa
     }
     catch (err) {
         console.error('Webhook processing error:', err);
-        res.status(500).json((0, response_helper_1.createResponse)("Webhook processing error", String(err)));
+        res.status(500).json((0, response_helper_1.createResponse)(null, "Webhook processing error"));
     }
 }));

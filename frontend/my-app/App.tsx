@@ -20,13 +20,14 @@ import Navbar from './components/Navbar'
 import EditApplication from './pages/EditApplication'
 import Transactions from './pages/Transactions'
 import Landing from './pages/Landing'
+import Apply from './pages/Apply'
 import DeliveryManagement from './pages/DeliveryManagement'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import ReturnPolicy from './pages/ReturnPolicy'
 
 function AppContent() {
   const location = useLocation();
-  const isLandingPage = location.pathname === '/landing';
+  const isLandingPage = location.pathname === '/' || location.pathname === '/landing' || location.pathname === '/apply';
 
   return (
     <div className="min-h-screen bg-amber-50">
@@ -44,11 +45,12 @@ function AppContent() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/" element={<Landing />} />
             <Route path="/landing" element={<Landing />} />
+            <Route path="/apply" element={<Apply />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/return-policy" element={<ReturnPolicy />} />
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Onboarding />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/onboarding/:id" element={<Onboarding />} />
               <Route path="/create" element={<Onboarding />} />

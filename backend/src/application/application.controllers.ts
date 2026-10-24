@@ -4,7 +4,6 @@ import createHttpError from "http-errors";
 import { createResponse } from "../common/helper/response.helper";
 
 import * as applicationService from "./application.services";
-import e from "cors";
 
 export const createApplication = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
@@ -23,12 +22,12 @@ export const updateStatus = asyncHandler(async (req: Request, res: Response) => 
 
 export const updateApplication = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
+  const role = req.user?.role as "USER" | "ADMIN" | undefined;
   const id = req.params.id;
-  console.log(userId, id);
   if (!userId) {
     throw createHttpError(401, "Unauthorized");
   }
-  const result = await applicationService.updateApplication(userId, req.body, id);
+  const result = await applicationService.updateApplication(userId, req.body, id, role);
   res.send(createResponse(result, "Application updated successfully"));
 });
 
@@ -43,11 +42,12 @@ export const getAllApplicationsForUser = asyncHandler(async (req: Request, res: 
 
 export const getApplicationById = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
+  const role = req.user?.role as "USER" | "ADMIN" | undefined;
   const id = req.params.id;
   if (!userId) {
     throw createHttpError(401, "Unauthorized");
   }
-  const result = await applicationService.getApplicationById(userId, id);
+  const result = await applicationService.getApplicationById(userId, id, role);
   if (!result) {
     throw createHttpError(404, "Application not found");
   }
@@ -95,7 +95,6 @@ export const uploadRc = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const uploadPanImage = asyncHandler(async (req: Request, res: Response) => {
-  console.log(req.file);
   if (!req.file) {
       res.status(400).send(createResponse(null, "No file uploaded"));
       return;
@@ -135,18 +134,4 @@ export const uploadVehicleSideImage = asyncHandler(async (req: Request, res: Res
 
   const result = await applicationService.uploadVehicleSideImage(req.file, req.user._id as string, id);
   res.send(createResponse(result, "Vehicle side image uploaded successfully"));
-});
-
-export const uploadVehicleFrontImage = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.file) {
-      res.status(400).send(createResponse(null, "No file uploaded"));
-      return;
-  }
-  if(!req.user) {
-     throw createHttpError(401, "Unauthorized");
-  }
-  const id = req.params.id;
-
-  const result = await applicationService.uploadVehicleFront(req.file, req.user._id as string, id);
-  res.send(createResponse(result, "Vehicle front image uploaded successfully"));
 });

@@ -9,7 +9,7 @@ export default function AdminRoute() {
 		return <Navigate to="/login" replace state={{ from: location }} />;
 	}
 	if (user?.role !== 'ADMIN') {
-		return <Navigate to="/" replace />;
+		return <Navigate to="/onboarding" replace />;
 	}
 	return <Outlet />;
 }

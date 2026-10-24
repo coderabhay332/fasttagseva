@@ -8,7 +8,7 @@ export interface IUser extends BaseSchema {
     role: string;
     pancard: string;
     phone?: string;
-    payment: mongoose.Schema.Types.ObjectId[]; // Assuming content is a reference to another schema
+    payment: mongoose.Types.ObjectId[]; // Assuming content is a reference to another schema
     name: string;
     refreshToken: string;
 }

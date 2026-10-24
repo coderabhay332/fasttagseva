@@ -11,7 +11,6 @@ if (!process.env.VERCEL) {
     require('dotenv').config();
     (0, config_helper_1.loadConfig)();
 }
-console.log(process.env.EMAIL_USER, process.env.EMAIL_PASS);
 exports.transporter = nodemailer_1.default.createTransport({
     service: "gmail",
     auth: {

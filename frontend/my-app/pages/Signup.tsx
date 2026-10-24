@@ -28,7 +28,7 @@ export default function Signup() {
 	const auth = useAppSelector(s => s.auth);
 	const navigate = useNavigate();
 	const location = useLocation();
-	const from = (location.state as any)?.from?.pathname || '/';
+	const from = (location.state as any)?.from?.pathname || '/onboarding';
 
 	const [formData, setFormData] = useState<FormData>({
 		name: '',

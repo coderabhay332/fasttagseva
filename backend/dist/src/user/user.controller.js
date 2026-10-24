@@ -46,7 +46,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadImage = exports.resetPassword = exports.forgotPassword = exports.refreshToken = exports.login = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUser = exports.me = exports.createUser = void 0;
-const userService = __importStar(require("./user.service.js"));
+const userService = __importStar(require("./user.service"));
 const response_helper_1 = require("../common/helper/response.helper");
 const express_async_handler_1 = __importDefault(require("express-async-handler"));
 const passport_jwt_services_1 = require("../common/services/passport-jwt.services");
@@ -55,7 +55,6 @@ exports.createUser = (0, express_async_handler_1.default)((req, res) => __awaite
     res.send((0, response_helper_1.createResponse)(result, "User created sucssefully"));
 }));
 exports.me = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log("req.user", req.user);
     const result = yield userService.me(req.user);
     res.send((0, response_helper_1.createResponse)(result, "User fetched sucssefully"));
 }));

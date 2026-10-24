@@ -9,8 +9,9 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     data: err?.data ?? {},
   };
 
+  // Do NOT call next() after sending — once a response is sent, forwarding to
+  // the default Express handler throws ERR_HTTP_HEADERS_SENT.
   res.status(response.error_code).send(response);
-  next();
 };
 
 export default errorHandler;

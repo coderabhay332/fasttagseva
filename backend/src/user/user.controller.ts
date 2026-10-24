@@ -1,4 +1,4 @@
-import * as userService from "./user.service.js";
+import * as userService from "./user.service";
 import { createResponse } from "../common/helper/response.helper";
 import asyncHandler from "express-async-handler";
 import { type Request, type Response } from "express";
@@ -10,7 +10,6 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
   res.send(createResponse(result, "User created sucssefully"));
 });
 export const me = asyncHandler(async (req: Request, res: Response) => {
-  console.log("req.user", req.user);
   const result = await userService.me(req.user as IUser);
   res.send(createResponse(result, "User fetched sucssefully"));
 });

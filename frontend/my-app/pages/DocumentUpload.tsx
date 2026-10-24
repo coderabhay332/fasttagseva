@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../stores';
-import { uploadPan, uploadRc, uploadVehicleFront, uploadVehicleSide, listMyPayments } from '../services/applications';
+import { uploadPan, uploadRc, uploadVehicleFront, uploadVehicleSide } from '../services/applications';
 import Card, { CardBody, CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 
@@ -24,22 +24,13 @@ export default function DocumentUpload() {
 	});
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
-	const [paid, setPaid] = useState<boolean>(false);
 
 	useEffect(() => {
 		if (!user) {
 			navigate('/login');
 			return;
 		}
-		(async () => {
-			try {
-				const res = await listMyPayments(1, 100);
-				const payments = res.data?.data?.payments || res.data?.payments || [];
-				const isPaid = payments.some((p: any) => p.applicationId === id && p.paymentStatus === 'PAID');
-				setPaid(isPaid);
-			} catch {}
-		})();
-	}, [user, navigate, id]);
+	}, [user, navigate]);
 
 	const handleFileSelect = (type: keyof UploadState, file: File) => {
 		setUploadState(prev => ({
@@ -50,10 +41,6 @@ export default function DocumentUpload() {
 	};
 
 	const uploadFile = async (type: keyof UploadState) => {
-		if (!paid) {
-			setError('Please complete the payment before uploading documents.');
-			return;
-		}
 		const currentState = uploadState[type];
 		if (!currentState.file) return;
 
@@ -120,17 +107,7 @@ export default function DocumentUpload() {
 						</svg>
 					</div>
 					<h1 className="text-4xl font-bold gradient-text mb-2">Upload Documents</h1>
-					<p className="text-gray-600 text-lg">{paid ? 'Payment verified. You can upload your documents.' : 'Complete your payment to start uploading documents.'}</p>
-					{!paid && (
-						<div className="mt-4">
-							<Link
-								to={`/payment/${id}`}
-								className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-							>
-								Complete Payment
-							</Link>
-						</div>
-					)}
+					<p className="text-gray-600 text-lg">Upload clear photos of each required document below.</p>
 				</div>
 
 				{/* Success/Error Messages */}
@@ -153,13 +130,6 @@ export default function DocumentUpload() {
 							</svg>
 							<span className="text-red-800 font-medium">{error}</span>
 						</div>
-					</div>
-				)}
-
-				{/* Uploads are disabled until paid */}
-				{!paid && (
-					<div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-						<div className="text-yellow-800 text-sm">Please complete the payment to enable uploads.</div>
 					</div>
 				)}
 
@@ -387,7 +357,7 @@ export default function DocumentUpload() {
 										View My Applications
 									</Button>
 									<Button
-										onClick={() => navigate('/')}
+										onClick={() => navigate('/onboarding')}
 									>
 										Create Another Application
 									</Button>
