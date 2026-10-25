@@ -11,6 +11,7 @@ import {
 	uploadVehicleFront,
 	uploadVehicleSide,
 } from '../services/applications';
+import { prepareImageForUpload, UploadValidationError } from '../utils/imageUpload';
 import Card, { CardBody, CardHeader, CardFooter } from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -272,15 +273,26 @@ export default function Onboarding() {
 		}
 	};
 
-	const onPickDoc = (key: DocKey, file: File) => {
+	const onPickDoc = async (key: DocKey, file: File) => {
 		setError(null);
-		setDocs((prev) => ({ ...prev, [key]: { ...prev[key], file } }));
+		let prepared: File;
+		try {
+			prepared = await prepareImageForUpload(file);
+		} catch (e) {
+			setError(
+				e instanceof UploadValidationError
+					? e.message
+					: 'Could not process that image. Please try another file.'
+			);
+			return;
+		}
+		setDocs((prev) => ({ ...prev, [key]: { ...prev[key], file: prepared } }));
 		// Upload straight away once we have an application to attach it to.
 		// (Uploads used to wait for payment confirmation, but that depends on a
 		// webhook that can't reach localhost in dev and can lag in prod, so the
 		// documents would silently never upload. The upload endpoints only need
 		// a valid application id, which exists by this step.)
-		if (appId) void doUpload(key, file);
+		if (appId) void doUpload(key, prepared);
 	};
 
 	const startPayment = async () => {

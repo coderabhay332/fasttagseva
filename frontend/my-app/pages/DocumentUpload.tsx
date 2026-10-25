@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../stores';
 import { uploadPan, uploadRc, uploadVehicleFront, uploadVehicleSide } from '../services/applications';
+import { prepareImageForUpload, UploadValidationError } from '../utils/imageUpload';
 import Card, { CardBody, CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 
@@ -32,12 +33,21 @@ export default function DocumentUpload() {
 		}
 	}, [user, navigate]);
 
-	const handleFileSelect = (type: keyof UploadState, file: File) => {
-		setUploadState(prev => ({
-			...prev,
-			[type]: { ...prev[type], file, uploaded: false }
-		}));
+	const handleFileSelect = async (type: keyof UploadState, file: File) => {
 		setError(null);
+		try {
+			const prepared = await prepareImageForUpload(file);
+			setUploadState(prev => ({
+				...prev,
+				[type]: { ...prev[type], file: prepared, uploaded: false }
+			}));
+		} catch (err) {
+			const message = err instanceof UploadValidationError
+				? err.message
+				: 'Could not process that image. Please try another file.';
+			setError(message);
+			setTimeout(() => setError(null), 5000);
+		}
 	};
 
 	const uploadFile = async (type: keyof UploadState) => {
@@ -395,7 +405,7 @@ export default function DocumentUpload() {
 										<li>Use high-quality images (JPG, PNG)</li>
 										<li>Ensure all text is clearly readable</li>
 										<li>Good lighting and no shadows</li>
-										<li>Maximum file size: 5MB per image</li>
+										<li>Maximum file size: 8MB per image</li>
 									</ul>
 								</div>
 							</div>
