@@ -24,6 +24,7 @@ import Apply from './pages/Apply'
 import DeliveryManagement from './pages/DeliveryManagement'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import ReturnPolicy from './pages/ReturnPolicy'
+import { Toaster } from 'sonner'
 
 function AppContent() {
   const location = useLocation();
@@ -79,6 +80,7 @@ function App() {
   return (
     <BrowserRouter>
       <AppContent />
+      <Toaster position="top-right" richColors />
     </BrowserRouter>
   )
 }

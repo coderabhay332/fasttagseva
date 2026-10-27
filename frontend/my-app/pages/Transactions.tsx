@@ -3,6 +3,8 @@ import { listMyPayments } from '../services/applications';
 import Card, { CardBody, CardHeader } from '../components/ui/Card';
 import StatusBadge from '../components/StatusBadge';
 import { formatDate } from '../utils/dateUtils';
+import { useTransactionSocket } from '../hooks/use-transaction-socket';
+import type { TransactionEvent } from '../services/socket';
 
 export default function Transactions() {
 	const [data, setData] = useState<any[]>([]);
@@ -24,6 +26,38 @@ export default function Transactions() {
 		};
 		load();
 	}, []);
+
+	// Merge a live transaction event into the list: update the matching row by
+	// paymentId/orderId, or prepend it if it is a brand-new transaction.
+	const mergeEvent = (event: TransactionEvent) => {
+		setData((prev) => {
+			const idx = prev.findIndex(
+				(p) => p._id === event.paymentId || p.orderId === event.orderId
+			);
+			if (idx === -1) {
+				return [
+					{
+						_id: event.paymentId,
+						orderId: event.orderId,
+						amount: event.amount,
+						paymentStatus: event.paymentStatus,
+						paymentMethod: event.paymentMethod,
+						createdAt: event.updatedAt || new Date().toISOString(),
+					},
+					...prev,
+				];
+			}
+			const next = [...prev];
+			next[idx] = {
+				...next[idx],
+				paymentStatus: event.paymentStatus,
+				paymentId: event.paymentId,
+			};
+			return next;
+		});
+	};
+
+	useTransactionSocket({ onCreated: mergeEvent, onUpdate: mergeEvent });
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12">

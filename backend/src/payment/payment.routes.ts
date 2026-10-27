@@ -26,6 +26,9 @@ paymentWebhookRouter.post("/webhook", bodyParser.raw({ type: "application/json" 
 // List payments (requires authentication)
 router.get("/list", roleAuth(["USER", "ADMIN"]), paymentController.listPayments);
 
+// Reconcile payments for an application with Razorpay (fallback if a webhook is missed)
+router.post("/sync", roleAuth(["USER", "ADMIN"]), paymentController.syncPayments);
+
 // Get payments by application ID (for admin panel)
 router.get("/application/:applicationId", roleAuth(["ADMIN"]), paymentController.getPaymentsByApplication);
 

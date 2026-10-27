@@ -16,6 +16,9 @@ export const deleteApplication = (id: string) => api.delete(`/applications/${id}
 export const getPaymentsByApplication = (applicationId: string, page: number = 1, limit: number = 10) => 
 	api.get(`/payments/application/${applicationId}?page=${page}&limit=${limit}`);
 export const listMyPayments = (page: number = 1, limit: number = 50) => api.get(`/payments/list?page=${page}&limit=${limit}`);
+// Ask the backend to reconcile this application's payments with Razorpay
+// (covers a delayed or missed webhook).
+export const syncApplicationPayments = (applicationId: string) => api.post('/payments/sync', { applicationId });
 
 export const uploadPan = (id: string, file: File) => {
 	const fd = new FormData(); fd.append('file', file);

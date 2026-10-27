@@ -15,8 +15,10 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentLink: { type: String },
     paymentId: { type: String }, // Razorpay payment ID (available after successful payment)
-    paymentSessionId: { type: String }, // Receipt ID from Razorpay
+    paymentSessionId: { type: String }, // Our payment reference, also sent in Razorpay link notes (paymentRef)
+    razorpayOrderId: { type: String }, // Razorpay order_xxx backing the payment link
     response: { type: mongoose.Schema.Types.Mixed }, // Raw Razorpay response
+    lastEvent: { type: mongoose.Schema.Types.Mixed }, // Last webhook/sync snapshot that touched this payment
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     applicationId: { type: mongoose.Schema.Types.ObjectId, ref: "Application" },
     bankName: { type: String },

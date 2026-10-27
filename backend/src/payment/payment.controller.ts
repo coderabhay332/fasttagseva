@@ -182,6 +182,24 @@ export const getPaymentsByApplication = asyncHandler(async (req: Request, res: R
 });
 
 /**
+ * Reconcile the user's payments for an application with Razorpay.
+ * POST /api/payments/sync  { applicationId }
+ */
+export const syncPayments = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user || !req.user._id) {
+    res.status(401).json(createResponse(null, "Unauthorized"));
+    return;
+  }
+  const applicationId = req.body?.applicationId;
+  if (typeof applicationId !== "string" || !/^[a-f0-9]{24}$/i.test(applicationId)) {
+    res.status(400).json({ success: false, message: "Valid applicationId is required" });
+    return;
+  }
+  const result = await paymentService.syncApplicationPayments(String(req.user._id), applicationId);
+  res.json(createResponse(result, "Payments synced"));
+});
+
+/**
  * Razorpay Webhook handler (uses raw body to compute signature)
  * Header: x-razorpay-signature, Secret: process.env.RAZORPAY_WEBHOOK_SECRET (recommended)
  */

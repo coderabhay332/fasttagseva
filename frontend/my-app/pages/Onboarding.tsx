@@ -6,12 +6,15 @@ import { createPaymentThunk } from '../stores/slices/paymentSlice';
 import { profileService } from '../services/profile';
 import {
 	listMyPayments,
+	syncApplicationPayments,
 	uploadPan,
 	uploadRc,
 	uploadVehicleFront,
 	uploadVehicleSide,
 } from '../services/applications';
 import { prepareImageForUpload, UploadValidationError } from '../utils/imageUpload';
+import { useTransactionSocket } from '../hooks/use-transaction-socket';
+import { toast } from 'sonner';
 import Card, { CardBody, CardHeader, CardFooter } from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -113,6 +116,25 @@ export default function Onboarding() {
 	const [paid, setPaid] = useState(false);
 	const price = useMemo(() => BANK_PRICING[bank], [bank]);
 
+	// Real-time transaction updates. When Razorpay's webhook reaches the backend
+	// it emits here, so the UI reflects a PAID/FAILED result immediately instead
+	// of waiting on the polling fallback in waitForPaid.
+	useTransactionSocket({
+		onUpdate: (event) => {
+			// Only react to events for the application being onboarded.
+			if (appId && event.applicationId && event.applicationId !== appId) return;
+
+			if (event.paymentStatus === 'PAID') {
+				setPaid(true);
+				toast.success('Payment received! Continuing your application.');
+			} else if (event.paymentStatus === 'FAILED') {
+				toast.error('Payment failed. Please try again.');
+			} else if (event.paymentStatus === 'CANCELLED') {
+				toast.error('Payment was cancelled. You can retry whenever you are ready.');
+			}
+		},
+	});
+
 	// Prefill profile details (phone saved at signup, plus any saved KYC).
 	useEffect(() => {
 		// The /apply draft has now seeded initial state; drop it so a later
@@ -131,12 +153,16 @@ export default function Onboarding() {
 		})();
 	}, []);
 
-	// Resume flow: if we arrived with an application id, load it and figure out
-	// where to drop the user (documents vs pay) based on payment status.
+	// Resume flow: if we arrived with an application id, load it and drop the
+	// user on the RIGHT step based on real state — not a blanket jump to the
+	// address step. Landing here does not imply payment succeeded: the URL
+	// becomes /onboarding/:id as soon as the application is created (see
+	// saveVehicle), so a plain refresh after an upload error also lands here.
 	useEffect(() => {
 		if (!routeId) return;
 		setAppId(routeId);
 		(async () => {
+			let docsComplete = false;
 			try {
 				const res = await dispatch(getApplicationByIdThunk(routeId));
 				const data: any = (res as any).payload;
@@ -144,19 +170,36 @@ export default function Onboarding() {
 					setVehicle((v) => v || data.vehicle || '');
 					setEngineNumber((v) => v || data.engineNumber || '');
 					setChasisNumber((v) => v || data.chasisNumber || '');
+					// Field names must match the application schema
+					// (panImage/rcImage/vehicleFrontImage/vehicleSideImage).
+					const nextDocs = {
+						pan: data.panImage,
+						rc: data.rcImage,
+						vehicleFront: data.vehicleFrontImage,
+						vehicleSide: data.vehicleSideImage,
+					};
 					setDocs((prev) => ({
-						pan: { ...prev.pan, url: data.pancard || prev.pan.url },
-						rc: { ...prev.rc, url: data.rc || prev.rc.url },
-						vehicleFront: { ...prev.vehicleFront, url: data.vehicleFront || prev.vehicleFront.url },
-						vehicleSide: { ...prev.vehicleSide, url: data.vehicleSide || prev.vehicleSide.url },
+						pan: { ...prev.pan, url: nextDocs.pan || prev.pan.url },
+						rc: { ...prev.rc, url: nextDocs.rc || prev.rc.url },
+						vehicleFront: { ...prev.vehicleFront, url: nextDocs.vehicleFront || prev.vehicleFront.url },
+						vehicleSide: { ...prev.vehicleSide, url: nextDocs.vehicleSide || prev.vehicleSide.url },
 					}));
+					docsComplete = Boolean(
+						nextDocs.pan && nextDocs.rc && nextDocs.vehicleFront && nextDocs.vehicleSide
+					);
 				}
 			} catch {}
-			// The user has returned from the payment gateway. Move forward to the
-			// delivery-address step rather than dropping them back on an earlier
-			// step. (We still refresh paid status in the background for display.)
-			void waitForPaid(routeId);
-			setStepIndex(stepIndexOf('address'));
+
+			// Gate the destination on the ACTUAL payment result. waitForPaid polls
+			// a few times to tolerate webhook lag after returning from the gateway.
+			const isPaid = await waitForPaid(routeId);
+			if (isPaid) {
+				setStepIndex(stepIndexOf('address'));
+			} else if (docsComplete) {
+				setStepIndex(stepIndexOf('pay'));
+			} else {
+				setStepIndex(stepIndexOf('documents'));
+			}
 		})();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [routeId]);
@@ -173,9 +216,19 @@ export default function Onboarding() {
 		}
 	};
 
-	// On return from the payment gateway the webhook may lag a moment, so poll
-	// a few times before concluding the user still needs to pay.
+	// On return from the payment gateway the webhook may lag (or be missed), so
+	// first ask the backend to reconcile with Razorpay, then poll a few times
+	// before concluding the user still needs to pay.
 	const waitForPaid = async (id: string): Promise<boolean> => {
+		try {
+			const res = await syncApplicationPayments(id);
+			if (res.data?.data?.paid) {
+				setPaid(true);
+				return true;
+			}
+		} catch {
+			// Sync is best-effort; fall back to polling below.
+		}
 		for (let attempt = 0; attempt < 4; attempt++) {
 			const ok = await refreshPaid(id);
 			if (ok) return true;

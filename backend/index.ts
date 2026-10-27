@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import errorHandler from "./src/common/middleware/error.handler";
 import { initDB } from "./src/common/services/database.services";
 import { initPassport } from "./src/common/services/passport-jwt.services";
+import { initSocket } from "./src/common/services/socket.services";
 import { IUser } from "./src/user/user.dto";
 import routes from "./src/routes";
 import { verifyWebhook as paymentsWebhookHandler } from "./src/payment/payment.webhook";
@@ -109,7 +110,10 @@ const initApp = async (): Promise<void> => {
 
     // Only start server if not in Vercel environment
     if (!process.env.VERCEL) {
-      http.createServer(app).listen(port, () => {
+      const server = http.createServer(app);
+      // Attach the Socket.IO server for real-time transaction notifications.
+      initSocket(server);
+      server.listen(port, () => {
         console.log("Server running on port", port);
       });
     } else {

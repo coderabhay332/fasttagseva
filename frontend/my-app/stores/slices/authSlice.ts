@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import api from '../../services/api';
+import { disconnectSocket } from '../../services/socket';
 
 interface AuthState {
 	accessToken: string | null;
@@ -44,6 +45,9 @@ export const signupThunk = createAsyncThunk(
 );
 
 export const logoutThunk = createAsyncThunk('auth/logout', async () => {
+	// Close the real-time transaction socket so it is recreated with a fresh
+	// token on the next login.
+	disconnectSocket();
 	localStorage.removeItem('auth');
 });
 
