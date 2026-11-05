@@ -4,47 +4,56 @@ import { useAppDispatch, useAppSelector } from '../stores';
 import { createApplicationThunk, getApplicationByIdThunk } from '../stores/slices/applicationSlice';
 import { createPaymentThunk } from '../stores/slices/paymentSlice';
 import { profileService } from '../services/profile';
-import {
-	listMyPayments,
-	syncApplicationPayments,
-	uploadPan,
-	uploadRc,
-	uploadVehicleFront,
-	uploadVehicleSide,
-} from '../services/applications';
-import { prepareImageForUpload, UploadValidationError } from '../utils/imageUpload';
+import { listMyPayments, syncApplicationPayments } from '../services/applications';
 import { useTransactionSocket } from '../hooks/use-transaction-socket';
 import { toast } from 'sonner';
 import Card, { CardBody, CardHeader, CardFooter } from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Stepper from '../components/ui/Stepper';
-import FileDrop from '../components/ui/FileDrop';
 import PaymentOptionCard from '../components/PaymentOptionCard';
-import DeliveryLocationForm from '../components/DeliveryLocationForm';
 import { readApplyDraft, clearApplyDraft } from '../utils/applyDraft';
 import {
-	CarFront,
-	FileText,
-	IdCard,
-	ShieldCheck,
-	Clock,
 	ArrowLeft,
 	ArrowRight,
 	PartyPopper,
+	Clock,
+	BadgePlus,
+	RefreshCw,
+	Truck,
+	UserCheck,
+	CalendarCheck,
+	ShieldAlert,
+	FileText,
+	Bell,
+	XCircle,
 } from 'lucide-react';
 
+// A flow this light only needs three real steps. FASTagSeva takes over once
+// payment lands, so there is no document or delivery collection here.
 const STEPS = [
-	{ key: 'welcome', label: 'Welcome' },
+	{ key: 'service', label: 'Service' },
 	{ key: 'details', label: 'Your details' },
-	{ key: 'vehicle', label: 'Vehicle' },
-	{ key: 'documents', label: 'Documents' },
 	{ key: 'pay', label: 'Payment' },
-	{ key: 'address', label: 'Delivery' },
 	{ key: 'done', label: 'Done' },
 ];
 
 const stepIndexOf = (key: string) => STEPS.findIndex((s) => s.key === key);
+
+// The services FASTagSeva offers. `value` matches the backend SERVICE_TYPES enum.
+const SERVICES = [
+	{ value: 'NEW_FASTAG', label: 'New FASTag', hint: 'Apply for a brand new FASTag', icon: BadgePlus },
+	{ value: 'REPLACEMENT_FASTAG', label: 'Replacement FASTag', hint: 'Replace a lost or damaged tag', icon: RefreshCw },
+	{ value: 'COMMERCIAL_FASTAG', label: 'Commercial FASTag', hint: 'For trucks & commercial vehicles', icon: Truck },
+	{ value: 'KYC_KYV', label: 'KYC / KYV Update', hint: 'Update your KYC or vehicle details', icon: UserCheck },
+	{ value: 'ANNUAL_PASS', label: 'Annual Pass', hint: 'Activate the NHAI annual pass', icon: CalendarCheck },
+	{ value: 'BLACKLIST_HOTLIST', label: 'Blacklist / Hotlist', hint: 'Resolve a blacklisted tag', icon: ShieldAlert },
+	{ value: 'VRN_UPDATE', label: 'VRN Update', hint: 'Update vehicle registration number', icon: FileText },
+	{ value: 'E_NOTICE', label: 'E-Notice', hint: 'E-Notice related assistance', icon: Bell },
+	{ value: 'TAG_CLOSURE', label: 'Tag Closure', hint: 'Close an existing FASTag', icon: XCircle },
+] as const;
+
+type ServiceValue = (typeof SERVICES)[number]['value'];
 
 const BANK_PRICING: Record<string, number> = {
 	SBI: 400,
@@ -53,28 +62,7 @@ const BANK_PRICING: Record<string, number> = {
 	Axis: 500,
 };
 
-const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const PHONE_RE = /^\d{10}$/;
-
-type DocKey = 'pan' | 'rc' | 'vehicleFront' | 'vehicleSide';
-interface DocSlot {
-	file: File | null;
-	url?: string;
-	loading: boolean;
-}
-const emptyDocs = (): Record<DocKey, DocSlot> => ({
-	pan: { file: null, loading: false },
-	rc: { file: null, loading: false },
-	vehicleFront: { file: null, loading: false },
-	vehicleSide: { file: null, loading: false },
-});
-
-const DOC_META: { key: DocKey; label: string; hint: string }[] = [
-	{ key: 'pan', label: 'PAN Card', hint: 'Clear photo of your PAN card' },
-	{ key: 'rc', label: 'RC Book', hint: 'Vehicle registration certificate' },
-	{ key: 'vehicleFront', label: 'Vehicle — Front', hint: 'Front view of the vehicle' },
-	{ key: 'vehicleSide', label: 'Vehicle — Side', hint: 'Side view of the vehicle' },
-];
 
 export default function Onboarding() {
 	const dispatch = useAppDispatch();
@@ -92,20 +80,15 @@ export default function Onboarding() {
 	// signing up. Rehydrate them here so nothing is re-typed. Cleared once read.
 	const draft = useMemo(() => readApplyDraft(), []);
 
+	// Step 0 — service
+	const [serviceType, setServiceType] = useState<ServiceValue | ''>('');
+
 	// Step 1 — details
 	const [phone, setPhone] = useState(draft.phone || '');
-	const [dob, setDob] = useState('');
-	const [pan, setPan] = useState('');
-
-	// Step 2 — vehicle
 	const [vehicle, setVehicle] = useState(draft.vehicle || '');
-	const [engineNumber, setEngineNumber] = useState('');
-	const [chasisNumber, setChasisNumber] = useState('');
+	const [notes, setNotes] = useState('');
 
-	// Step 3 — documents (files held locally until payment is confirmed)
-	const [docs, setDocs] = useState<Record<DocKey, DocSlot>>(emptyDocs());
-
-	// Step 4 — payment
+	// Step 2 — payment
 	const [bank, setBank] = useState<string>(() => {
 		try {
 			const stored = localStorage.getItem('selectedBank');
@@ -114,91 +97,75 @@ export default function Onboarding() {
 		return 'SBI';
 	});
 	const [paid, setPaid] = useState(false);
+	// True when the user came back from the gateway but we could NOT confirm a
+	// successful payment (failed, cancelled, or still pending). Drives a clear
+	// retry/exit banner instead of silently showing a bare payment form.
+	const [returnedUnpaid, setReturnedUnpaid] = useState(false);
 	const price = useMemo(() => BANK_PRICING[bank], [bank]);
 
-	// Real-time transaction updates. When Razorpay's webhook reaches the backend
-	// it emits here, so the UI reflects a PAID/FAILED result immediately instead
-	// of waiting on the polling fallback in waitForPaid.
+	// Real-time transaction updates. When the gateway's webhook reaches the
+	// backend it emits here, so the UI reflects PAID/FAILED immediately instead
+	// of relying solely on the polling fallback in waitForPaid.
 	useTransactionSocket({
 		onUpdate: (event) => {
-			// Only react to events for the application being onboarded.
 			if (appId && event.applicationId && event.applicationId !== appId) return;
-
 			if (event.paymentStatus === 'PAID') {
 				setPaid(true);
-				toast.success('Payment received! Continuing your application.');
+				setReturnedUnpaid(false);
+				setStepIndex(stepIndexOf('done'));
+				toast.success('Payment received! Your request is in.');
 			} else if (event.paymentStatus === 'FAILED') {
+				setReturnedUnpaid(true);
 				toast.error('Payment failed. Please try again.');
 			} else if (event.paymentStatus === 'CANCELLED') {
+				setReturnedUnpaid(true);
 				toast.error('Payment was cancelled. You can retry whenever you are ready.');
 			}
 		},
 	});
 
-	// Prefill profile details (phone saved at signup, plus any saved KYC).
+	// Prefill the phone saved at signup / in the profile.
 	useEffect(() => {
-		// The /apply draft has now seeded initial state; drop it so a later
-		// visit starts clean and doesn't resurrect stale values.
 		clearApplyDraft();
 		(async () => {
 			try {
 				const res = await profileService.getProfile();
 				const p = res?.data;
-				if (p) {
-					setPhone((v) => v || p.phone || '');
-					setPan((v) => v || p.pancardNumber || '');
-					setDob((v) => v || p.dateOfBirth || '');
-				}
+				if (p) setPhone((v) => v || p.phone || '');
 			} catch {}
 		})();
 	}, []);
 
-	// Resume flow: if we arrived with an application id, load it and drop the
-	// user on the RIGHT step based on real state — not a blanket jump to the
-	// address step. Landing here does not imply payment succeeded: the URL
-	// becomes /onboarding/:id as soon as the application is created (see
-	// saveVehicle), so a plain refresh after an upload error also lands here.
+	// Resume flow: if we arrived with an application id, load it and land the
+	// user on the right step based on real payment state.
 	useEffect(() => {
 		if (!routeId) return;
 		setAppId(routeId);
 		(async () => {
-			let docsComplete = false;
 			try {
 				const res = await dispatch(getApplicationByIdThunk(routeId));
 				const data: any = (res as any).payload;
 				if (data) {
+					setServiceType((v) => v || (data.serviceType as ServiceValue) || '');
 					setVehicle((v) => v || data.vehicle || '');
-					setEngineNumber((v) => v || data.engineNumber || '');
-					setChasisNumber((v) => v || data.chasisNumber || '');
-					// Field names must match the application schema
-					// (panImage/rcImage/vehicleFrontImage/vehicleSideImage).
-					const nextDocs = {
-						pan: data.panImage,
-						rc: data.rcImage,
-						vehicleFront: data.vehicleFrontImage,
-						vehicleSide: data.vehicleSideImage,
-					};
-					setDocs((prev) => ({
-						pan: { ...prev.pan, url: nextDocs.pan || prev.pan.url },
-						rc: { ...prev.rc, url: nextDocs.rc || prev.rc.url },
-						vehicleFront: { ...prev.vehicleFront, url: nextDocs.vehicleFront || prev.vehicleFront.url },
-						vehicleSide: { ...prev.vehicleSide, url: nextDocs.vehicleSide || prev.vehicleSide.url },
-					}));
-					docsComplete = Boolean(
-						nextDocs.pan && nextDocs.rc && nextDocs.vehicleFront && nextDocs.vehicleSide
-					);
+					setNotes((v) => v || data.notes || '');
 				}
 			} catch {}
 
-			// Gate the destination on the ACTUAL payment result. waitForPaid polls
-			// a few times to tolerate webhook lag after returning from the gateway.
 			const isPaid = await waitForPaid(routeId);
 			if (isPaid) {
-				setStepIndex(stepIndexOf('address'));
-			} else if (docsComplete) {
-				setStepIndex(stepIndexOf('pay'));
+				setStepIndex(stepIndexOf('done'));
 			} else {
-				setStepIndex(stepIndexOf('documents'));
+				// Did the user just come back from the gateway? If so, we tried to
+				// reconcile and still couldn't confirm payment — surface a clear
+				// retry/exit banner rather than a silent bare payment form.
+				const params = new URLSearchParams(window.location.search);
+				if (params.get('pay') === 'return') {
+					setReturnedUnpaid(true);
+					// Drop the marker so a later refresh doesn't keep showing it.
+					window.history.replaceState(null, '', `/onboarding/${routeId}`);
+				}
+				setStepIndex(stepIndexOf('pay'));
 			}
 		})();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -216,9 +183,9 @@ export default function Onboarding() {
 		}
 	};
 
-	// On return from the payment gateway the webhook may lag (or be missed), so
-	// first ask the backend to reconcile with Razorpay, then poll a few times
-	// before concluding the user still needs to pay.
+	// On return from the gateway the webhook may lag (or be missed), so first
+	// ask the backend to reconcile, then poll a few times before concluding the
+	// user still needs to pay.
 	const waitForPaid = async (id: string): Promise<boolean> => {
 		try {
 			const res = await syncApplicationPayments(id);
@@ -237,119 +204,58 @@ export default function Onboarding() {
 		return false;
 	};
 
-	// Once payment is confirmed, auto-upload any files the user chose earlier.
-	useEffect(() => {
-		if (!paid || !appId) return;
-		(async () => {
-			for (const meta of DOC_META) {
-				const slot = docs[meta.key];
-				if (slot.file && !slot.url) {
-					await doUpload(meta.key, slot.file);
-				}
-			}
-		})();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [paid, appId]);
-
 	const goNext = () => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
 	const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
 
 	// ---- Step actions -------------------------------------------------------
 
-	const saveDetails = async () => {
+	const chooseService = (value: ServiceValue) => {
 		setError(null);
-		if (!PHONE_RE.test(phone.trim())) return setError('Enter a valid 10-digit mobile number.');
-		if (!dob) return setError('Please select your date of birth.');
-		if (!PAN_RE.test(pan.trim().toUpperCase())) return setError('Enter a valid PAN (e.g. ABCDE1234F).');
-		setBusy(true);
-		try {
-			await profileService.updateProfile({
-				phone: phone.trim(),
-				pancardNumber: pan.trim().toUpperCase(),
-				dateOfBirth: dob,
-			});
-			goNext();
-		} catch (e: any) {
-			setError(e?.message || 'Could not save your details.');
-		} finally {
-			setBusy(false);
-		}
+		setServiceType(value);
+		goNext();
 	};
 
-	const saveVehicle = async () => {
+	// Create the application once we have the service + minimal details, then
+	// move to payment. Reuses an existing application if one is already open.
+	const saveDetails = async () => {
 		setError(null);
+		if (!serviceType) return setError('Please pick a service first.');
 		if (!vehicle.trim()) return setError('Vehicle number is required.');
-		if (!engineNumber.trim()) return setError('Engine number is required.');
-		if (!chasisNumber.trim()) return setError('Chassis number is required.');
+		if (!PHONE_RE.test(phone.trim())) return setError('Enter a valid 10-digit mobile number.');
 		setBusy(true);
 		try {
-			// Reuse an existing application if we already created one.
+			// Keep the phone on the profile so payment & staff have it.
+			try {
+				await profileService.updateProfile({ phone: phone.trim() });
+			} catch {}
+
 			if (appId) {
 				goNext();
 				return;
 			}
 			const res = await dispatch(
 				createApplicationThunk({
+					serviceType,
 					vehicle: vehicle.trim().toUpperCase(),
-					engineNumber: engineNumber.trim(),
-					chasisNumber: chasisNumber.trim(),
+					notes: notes.trim() || undefined,
 				})
 			);
 			if ((res as any).type?.endsWith('fulfilled')) {
 				const id = (res as any).payload?._id || (res as any).payload?.id;
 				setAppId(id);
-				// Keep the URL resumable without a full remount.
 				window.history.replaceState(null, '', `/onboarding/${id}`);
 				goNext();
 			} else {
-				setError((res as any).payload || 'Could not create your application.');
+				setError((res as any).payload || 'Could not create your request.');
 			}
 		} finally {
 			setBusy(false);
 		}
 	};
 
-	const doUpload = async (key: DocKey, file: File) => {
-		if (!appId) return;
-		setDocs((prev) => ({ ...prev, [key]: { ...prev[key], loading: true } }));
-		try {
-			let result: any;
-			if (key === 'pan') result = await uploadPan(appId, file);
-			else if (key === 'rc') result = await uploadRc(appId, file);
-			else if (key === 'vehicleFront') result = await uploadVehicleFront(appId, file);
-			else result = await uploadVehicleSide(appId, file);
-			const url = result?.data?.data?.url || result?.data?.url;
-			setDocs((prev) => ({ ...prev, [key]: { file: null, url, loading: false } }));
-		} catch (e: any) {
-			setDocs((prev) => ({ ...prev, [key]: { ...prev[key], loading: false } }));
-			setError(`Couldn't upload ${key}. ${e?.message || ''}`);
-		}
-	};
-
-	const onPickDoc = async (key: DocKey, file: File) => {
-		setError(null);
-		let prepared: File;
-		try {
-			prepared = await prepareImageForUpload(file);
-		} catch (e) {
-			setError(
-				e instanceof UploadValidationError
-					? e.message
-					: 'Could not process that image. Please try another file.'
-			);
-			return;
-		}
-		setDocs((prev) => ({ ...prev, [key]: { ...prev[key], file: prepared } }));
-		// Upload straight away once we have an application to attach it to.
-		// (Uploads used to wait for payment confirmation, but that depends on a
-		// webhook that can't reach localhost in dev and can lag in prod, so the
-		// documents would silently never upload. The upload endpoints only need
-		// a valid application id, which exists by this step.)
-		if (appId) void doUpload(key, prepared);
-	};
-
 	const startPayment = async () => {
 		setError(null);
+		setReturnedUnpaid(false);
 		if (!appId || !user) return setError('Something went wrong — please restart.');
 		if (!PHONE_RE.test(phone.trim())) return setError('A valid 10-digit phone is required for payment.');
 		try { localStorage.setItem('selectedBank', bank); } catch {}
@@ -370,19 +276,18 @@ export default function Onboarding() {
 				window.location.href = paymentUrl;
 				return;
 			}
-			// No redirect needed — payment is settled, go collect the address.
+			// No redirect needed — payment is settled.
 			await refreshPaid(appId);
-			setStepIndex(stepIndexOf('address'));
+			setStepIndex(stepIndexOf('done'));
 		} else {
 			setError((res as any).payload || 'Payment could not be started.');
 		}
 	};
 
-	const docsDone = DOC_META.every((m) => docs[m.key].url);
-
 	// ---- Render -------------------------------------------------------------
 
 	const step = STEPS[stepIndex].key;
+	const selectedService = SERVICES.find((s) => s.value === serviceType);
 
 	return (
 		<div className="min-h-screen bg-amber-50 py-10">
@@ -397,45 +302,53 @@ export default function Onboarding() {
 					</div>
 				)}
 
-				{/* STEP 0 — Welcome */}
-				{step === 'welcome' && (
+				{/* STEP 0 — Pick a service */}
+				{step === 'service' && (
 					<Card>
-						<CardHeader>Let's get your FASTag 🚗</CardHeader>
-						<CardBody className="space-y-5">
-							<p className="text-slate-600">
-								This takes about 3 minutes. Keep these handy before you start:
-							</p>
-							<ul className="space-y-3">
-								{[
-									{ icon: IdCard, text: 'Your PAN card' },
-									{ icon: FileText, text: 'Vehicle RC book' },
-									{ icon: CarFront, text: 'Two photos of your vehicle (front & side)' },
-								].map(({ icon: Icon, text }) => (
-									<li key={text} className="flex items-center gap-3">
-										<span className="grid h-9 w-9 place-items-center rounded-lg border-2 border-slate-900 bg-yellow-400">
-											<Icon className="h-5 w-5 text-slate-900" strokeWidth={2.5} />
-										</span>
-										<span className="font-medium text-slate-800">{text}</span>
-									</li>
-								))}
-							</ul>
-							<div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
-								<ShieldCheck className="h-5 w-5" /> Your details are used only to process your FASTag.
+						<CardHeader>What do you need help with?</CardHeader>
+						<CardBody>
+							<div className="grid gap-3 sm:grid-cols-2">
+								{SERVICES.map(({ value, label, hint, icon: Icon }) => {
+									const selected = serviceType === value;
+									return (
+										<button
+											key={value}
+											type="button"
+											onClick={() => chooseService(value)}
+											className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition ${
+												selected
+													? 'border-slate-900 bg-yellow-400'
+													: 'border-slate-200 bg-white hover:border-slate-900'
+											}`}
+										>
+											<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border-2 border-slate-900 bg-yellow-400">
+												<Icon className="h-5 w-5 text-slate-900" strokeWidth={2.5} />
+											</span>
+											<span>
+												<span className="block font-display font-extrabold text-slate-900">{label}</span>
+												<span className="block text-sm text-slate-600">{hint}</span>
+											</span>
+										</button>
+									);
+								})}
 							</div>
 						</CardBody>
-						<CardFooter className="flex justify-end">
-							<Button onClick={goNext} size="lg">
-								Start <ArrowRight className="h-5 w-5" />
-							</Button>
-						</CardFooter>
 					</Card>
 				)}
 
 				{/* STEP 1 — Details */}
 				{step === 'details' && (
 					<Card>
-						<CardHeader>Your details</CardHeader>
+						<CardHeader>
+							{selectedService ? `${selectedService.label} — your details` : 'Your details'}
+						</CardHeader>
 						<CardBody className="space-y-5">
+							<Input
+								label="Vehicle number"
+								placeholder="e.g. MH01AB1234"
+								value={vehicle}
+								onChange={(e) => setVehicle(e.target.value.toUpperCase())}
+							/>
 							<Input
 								label="Mobile number"
 								placeholder="10-digit number"
@@ -443,18 +356,18 @@ export default function Onboarding() {
 								value={phone}
 								onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
 							/>
-							<Input
-								label="Date of birth"
-								type="date"
-								value={dob}
-								onChange={(e) => setDob(e.target.value)}
-							/>
-							<Input
-								label="PAN number"
-								placeholder="ABCDE1234F"
-								value={pan}
-								onChange={(e) => setPan(e.target.value.toUpperCase().slice(0, 10))}
-							/>
+							<div>
+								<label className="mb-1.5 block text-sm font-semibold text-slate-800">
+									Anything we should know? <span className="font-normal text-slate-400">(optional)</span>
+								</label>
+								<textarea
+									className="w-full rounded-xl border-2 border-slate-200 p-3 text-slate-900 outline-none focus:border-slate-900"
+									rows={3}
+									placeholder="e.g. details about your request"
+									value={notes}
+									onChange={(e) => setNotes(e.target.value)}
+								/>
+							</div>
 						</CardBody>
 						<CardFooter className="flex justify-between">
 							<Button variant="ghost" onClick={goBack}>
@@ -467,86 +380,39 @@ export default function Onboarding() {
 					</Card>
 				)}
 
-				{/* STEP 2 — Vehicle */}
-				{step === 'vehicle' && (
-					<Card>
-						<CardHeader>Vehicle details</CardHeader>
-						<CardBody className="space-y-5">
-							<Input
-								label="Vehicle number"
-								placeholder="e.g. MH01AB1234"
-								value={vehicle}
-								onChange={(e) => setVehicle(e.target.value.toUpperCase())}
-							/>
-							<Input
-								label="Engine number"
-								placeholder="Engine number"
-								value={engineNumber}
-								onChange={(e) => setEngineNumber(e.target.value)}
-							/>
-							<Input
-								label="Chassis number"
-								placeholder="Chassis number"
-								value={chasisNumber}
-								onChange={(e) => setChasisNumber(e.target.value)}
-							/>
-							<p className="text-xs text-slate-500">
-								Tip: match these exactly with your registration certificate.
-							</p>
-						</CardBody>
-						<CardFooter className="flex justify-between">
-							<Button variant="ghost" onClick={goBack}>
-								<ArrowLeft className="h-5 w-5" /> Back
-							</Button>
-							<Button onClick={saveVehicle} loading={busy}>
-								Continue <ArrowRight className="h-5 w-5" />
-							</Button>
-						</CardFooter>
-					</Card>
-				)}
-
-				{/* STEP 3 — Documents */}
-				{step === 'documents' && (
-					<Card>
-						<CardHeader>Upload documents</CardHeader>
-						<CardBody className="space-y-4">
-							<div className="rounded-xl border-2 border-blue-400 bg-blue-50 p-3 text-sm text-blue-800">
-								Upload clear photos of each document. They save automatically as you add them.
-							</div>
-							<div className="grid gap-4 sm:grid-cols-2">
-								{DOC_META.map((m) => (
-									<FileDrop
-										key={m.key}
-										label={m.label}
-										hint={m.hint}
-										uploadedUrl={docs[m.key].url}
-										file={docs[m.key].file}
-										loading={docs[m.key].loading}
-										onSelect={(f) => onPickDoc(m.key, f)}
-										onClear={() =>
-											setDocs((prev) => ({ ...prev, [m.key]: { ...prev[m.key], file: null } }))
-										}
-									/>
-								))}
-							</div>
-						</CardBody>
-						<CardFooter className="flex justify-between">
-							<Button variant="ghost" onClick={goBack}>
-								<ArrowLeft className="h-5 w-5" /> Back
-							</Button>
-							<Button onClick={goNext} disabled={!docsDone}>
-								{docsDone ? 'Go to payment' : 'Upload all to continue'}{' '}
-								<ArrowRight className="h-5 w-5" />
-							</Button>
-						</CardFooter>
-					</Card>
-				)}
-
-				{/* STEP 4 — Payment */}
+				{/* STEP 2 — Payment */}
 				{step === 'pay' && (
 					<Card>
 						<CardHeader>Choose a bank &amp; pay</CardHeader>
 						<CardBody className="space-y-5">
+							{returnedUnpaid && (
+								<div className="rounded-xl border-2 border-amber-500 bg-amber-50 p-4 text-sm text-amber-900">
+									<p className="font-semibold">We couldn't confirm your payment.</p>
+									<p className="mt-1">
+										If money was deducted, it will be verified automatically and reflected
+										shortly — no need to pay again. Otherwise you can retry below, or come back
+										to it later from your requests.
+									</p>
+									<div className="mt-3 flex flex-wrap gap-2">
+										{appId && (
+											<Button
+												variant="secondary"
+												size="sm"
+												onClick={async () => {
+													const ok = await waitForPaid(appId);
+													if (ok) setStepIndex(stepIndexOf('done'));
+													else toast.info('Still not confirmed. You can retry payment.');
+												}}
+											>
+												Check again
+											</Button>
+										)}
+										<Button variant="ghost" size="sm" onClick={() => navigate('/my-application')}>
+											Go to my requests
+										</Button>
+									</div>
+								</div>
+							)}
 							<div className="grid gap-3">
 								{Object.keys(BANK_PRICING).map((b) => (
 									<PaymentOptionCard
@@ -563,66 +429,42 @@ export default function Onboarding() {
 								<span className="font-display text-2xl font-extrabold text-slate-900">₹{price}</span>
 							</div>
 							<p className="flex items-center gap-1.5 text-xs text-slate-500">
-								<Clock className="h-4 w-4" /> You'll set your delivery address right after payment.
+								<Clock className="h-4 w-4" /> Our team takes over as soon as your payment is confirmed.
 							</p>
 						</CardBody>
-						<CardFooter className="flex justify-between">
-							<Button variant="ghost" onClick={goBack}>
-								<ArrowLeft className="h-5 w-5" /> Back
-							</Button>
+						<CardFooter className="flex items-center justify-between">
+							<button
+								type="button"
+								className="text-sm font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-900"
+								onClick={() => navigate('/my-application')}
+							>
+								I'll pay later
+							</button>
 							<Button onClick={startPayment} loading={payment.loading} size="lg">
-								Pay ₹{price} <ArrowRight className="h-5 w-5" />
+								{returnedUnpaid ? 'Retry payment' : `Pay ₹${price}`} <ArrowRight className="h-5 w-5" />
 							</Button>
 						</CardFooter>
 					</Card>
 				)}
 
-				{/* STEP 5 — Delivery address */}
-				{step === 'address' && (
-					<div className="space-y-4">
-						<div className="rounded-xl border-2 border-emerald-500 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
-							Payment received 🎉 Where should we deliver your FASTag?
-						</div>
-						{appId ? (
-							<DeliveryLocationForm
-								applicationId={appId}
-								onSuccess={goNext}
-							/>
-						) : (
-							<Card>
-								<CardBody className="py-8 text-center text-slate-600">
-									We couldn't find your application reference. Please reopen it from{' '}
-									<button
-										className="font-semibold text-blue-600 underline"
-										onClick={() => navigate('/my-application')}
-									>
-										My applications
-									</button>
-									.
-								</CardBody>
-							</Card>
-						)}
-					</div>
-				)}
-
-				{/* STEP 6 — Done */}
+				{/* STEP 3 — Done */}
 				{step === 'done' && (
 					<Card>
 						<CardBody className="space-y-5 py-10 text-center">
 							<span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border-2 border-slate-900 bg-emerald-400 brand-shadow-md">
 								<PartyPopper className="h-8 w-8 text-slate-900" strokeWidth={2.5} />
 							</span>
-							<h2 className="font-display text-3xl font-extrabold text-slate-900">You're all set!</h2>
+							<h2 className="font-display text-3xl font-extrabold text-slate-900">Request received!</h2>
 							<p className="mx-auto max-w-md text-slate-600">
-								Your FASTag application is complete and your delivery address is saved. We'll review your
-								documents and deliver your FASTag to your doorstep.
+								{selectedService ? `Your ${selectedService.label} request is in.` : 'Your request is in.'}{' '}
+								Our team will reach out and handle the rest for you.
 							</p>
 							<div className="flex flex-wrap justify-center gap-3">
 								<Button variant="secondary" onClick={() => navigate('/my-application')}>
-									View my applications
+									View my requests
 								</Button>
 								{appId && (
-									<Button onClick={() => navigate(`/status/${appId}`)}>Track application</Button>
+									<Button onClick={() => navigate(`/status/${appId}`)}>Track request</Button>
 								)}
 							</div>
 						</CardBody>

@@ -82,7 +82,12 @@ export const createPaymentService = async (
         paymentMethod,
         paymentRef: receiptId
       },
-      callback_url: `${process.env.FRONTEND_BASE_URL || process.env.BASE_URL}/onboarding/${applicationId}`,
+      // Return the user to the FRONTEND onboarding page (never the backend).
+      // Razorpay only redirects here on success; the page itself handles the
+      // not-paid / abandoned case by reconciling and offering retry/exit. The
+      // `pay=return` marker tells the page the user is coming back from the
+      // gateway so it can show an outcome message instead of a bare form.
+      callback_url: `${process.env.FRONTEND_BASE_URL || process.env.FRONTEND_URL || 'http://localhost:5173'}/onboarding/${applicationId}?pay=return`,
       callback_method: 'get'
     };
 

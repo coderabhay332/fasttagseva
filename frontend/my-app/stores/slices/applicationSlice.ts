@@ -22,7 +22,16 @@ const initialState: ApplicationState = {
 
 export const createApplicationThunk = createAsyncThunk(
 	'application/create',
-	async (payload: { vehicle: string; engineNumber: string; chasisNumber: string }, { rejectWithValue }) => {
+	async (
+		payload: {
+			serviceType?: string;
+			vehicle: string;
+			engineNumber?: string;
+			chasisNumber?: string;
+			notes?: string;
+		},
+		{ rejectWithValue }
+	) => {
 		try {
 			const res = await api.post('/applications/create', payload);
 			return res.data?.data || res.data;

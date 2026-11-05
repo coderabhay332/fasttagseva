@@ -1,11 +1,13 @@
-import { Application } from "./application.schema";
+import { Application, SERVICE_TYPES } from "./application.schema";
 import {uploadImage} from "../common/services/cloudinary.services";
 import createHttpError from "http-errors";
 import { Profile } from "../profile/profile.schema";
 interface IApplication {
+  serviceType?: (typeof SERVICE_TYPES)[number];
   vehicle: string;
-  chasisNumber: string;
-  engineNumber: string;
+  chasisNumber?: string;
+  engineNumber?: string;
+  notes?: string;
   status?: "NOT SUBMITTED" | "PENDING" | "AGENT ASSIGNED" | "REJECTED" | "DONE";
 }
 
@@ -121,82 +123,59 @@ export const getAllApplications = async () => {
   return applications;
 };
 export const uploadPanImage = async (file: Express.Multer.File, userId: string, id: string) => {
-  if (!file) throw new Error("No file provided for upload");
-
-  const userFolder = `users/${userId}/`;
-
-  try {
-    const application = await Application.findOne({ _id: id, userId });
-    if (!application) throw createHttpError(404, "Application not found");
-
-    const result: string = await uploadImage(file, userFolder);
-    application.panImage = result;
-    await application.save();
-    return { url: result };
-
-  } catch (error) {
-    console.error("Error uploading image:", error);
-    throw new Error('Failed to upload image');
-  }
+  return uploadApplicationImage(file, userId, id, "panImage");
 }
 
 export const uploadRc = async (file: Express.Multer.File, userId: string, id: string) => {
-  if (!file) throw new Error("No file provided for upload");
-
-  const userFolder = `users/${userId}/`;
-
-  try {
-    const application = await Application.findOne({ _id: id, userId });
-    if (!application) throw createHttpError(404, "Application not found");
-
-    const result: string = await uploadImage(file, userFolder);
-    application.rcImage = result;
-    await application.save();
-    return { url: result };
-
-  } catch (error) {
-    console.error("Error uploading image:", error);
-    throw new Error('Failed to upload image');
-  }
+  return uploadApplicationImage(file, userId, id, "rcImage");
 }
 
 
 export const uploadVehicleFront = async (file: Express.Multer.File, userId: string, id: string) => {
-  if (!file) throw new Error("No file provided for upload");
-
-  const userFolder = `users/${userId}/`;
-
-  try {
-    const application = await Application.findOne({ _id: id, userId });
-    if (!application) throw createHttpError(404, "Application not found");
-
-    const result: string = await uploadImage(file, userFolder);
-    application.vehicleFrontImage = result;
-    await application.save();
-    return { url: result };
-
-  } catch (error) {
-    console.error("Error uploading image:", error);
-    throw new Error('Failed to upload image');
-  }
+  return uploadApplicationImage(file, userId, id, "vehicleFrontImage");
 }
 
 export const uploadVehicleSideImage = async (file: Express.Multer.File, userId: string, id: string) => {
-  if (!file) throw new Error("No file provided for upload");
+  return uploadApplicationImage(file, userId, id, "vehicleSideImage");
+}
 
-  const userFolder = `users/${userId}/`;
+// Shared upload path for all application document images. Centralising this
+// keeps error handling consistent and avoids losing real HTTP statuses:
+//   - a missing file is a 400 (client error), not a generic 500
+//   - a missing/non-owned application stays a 404 (it is NOT swallowed and
+//     re-thrown as 500 the way the old per-field try/catch blocks did)
+//   - a genuine Cloudinary failure becomes a 502 (upstream dependency), with the
+//     real cause logged server-side rather than hidden behind "Failed to upload"
+type ApplicationImageField =
+  | "panImage"
+  | "rcImage"
+  | "vehicleFrontImage"
+  | "vehicleSideImage";
 
+const uploadApplicationImage = async (
+  file: Express.Multer.File,
+  userId: string,
+  id: string,
+  field: ApplicationImageField
+) => {
+  if (!file) throw createHttpError(400, "No file provided for upload");
+
+  // A missing application is a real 404 and must surface as one. It is checked
+  // OUTSIDE the Cloudinary try/catch so it can never be re-wrapped as a 500.
+  const application = await Application.findOne({ _id: id, userId });
+  if (!application) throw createHttpError(404, "Application not found");
+
+  let url: string;
   try {
-    const application = await Application.findOne({ _id: id, userId });
-    if (!application) throw createHttpError(404, "Application not found");
-
-    const result: string = await uploadImage(file, userFolder);
-    application.vehicleSideImage = result;
-    await application.save();
-    return { url: result };
-
+    url = await uploadImage(file, `users/${userId}/`);
   } catch (error) {
-    console.error("Error uploading image:", error);
-    throw new Error('Failed to upload image');
+    // Log the real Cloudinary error for diagnosis, but report a 502 so the
+    // client knows the failure is an upstream dependency, not their request.
+    console.error(`Cloudinary upload failed for ${field}:`, error);
+    throw createHttpError(502, "Image upload failed. Please try again.");
   }
+
+  application[field] = url;
+  await application.save();
+  return { url };
 }

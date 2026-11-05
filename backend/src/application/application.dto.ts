@@ -7,9 +7,11 @@ interface ApplicationStatus {
 
 interface IApplication extends BaseSchema {
   userId: mongoose.Schema.Types.ObjectId;
+  serviceType?: string;
   vehicle: string;
-  engineNumber: string;
-  chasisNumber: string;
+  engineNumber?: string;
+  chasisNumber?: string;
+  notes?: string;
   status: ApplicationStatus;
   panImage: string;
   rcImage: string;

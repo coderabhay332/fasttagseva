@@ -1,11 +1,30 @@
 import api from './api';
 
-export const createApplication = (payload: { vehicle: string; engineNumber: string; chasisNumber: string }) =>
+export type ServiceType =
+	| 'NEW_FASTAG'
+	| 'REPLACEMENT_FASTAG'
+	| 'COMMERCIAL_FASTAG'
+	| 'KYC_KYV'
+	| 'ANNUAL_PASS'
+	| 'BLACKLIST_HOTLIST'
+	| 'VRN_UPDATE'
+	| 'E_NOTICE'
+	| 'TAG_CLOSURE';
+
+export interface CreateApplicationPayload {
+	serviceType?: ServiceType;
+	vehicle: string;
+	engineNumber?: string;
+	chasisNumber?: string;
+	notes?: string;
+}
+
+export const createApplication = (payload: CreateApplicationPayload) =>
 	api.post('/applications/create', payload);
 
 export const getMyApplications = () => api.get('/applications/my-application');
 export const getApplicationById = (id: string) => api.get(`/applications/${id}`);
-export const updateApplication = (id: string, payload: Partial<{ vehicle: string; engineNumber: string; chasisNumber: string }>) =>
+export const updateApplication = (id: string, payload: Partial<CreateApplicationPayload>) =>
 	api.put(`/applications/update/${id}`, payload);
 
 // Admin-only
